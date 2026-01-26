@@ -2,14 +2,19 @@
 ### Anna Thonis, Nikki Calavari, Uzma Ashraf, Toni Lyn Morelli, and Adam B. Smith*
 ### * adam.smith@mobot.org | Missouri Botanical Garden | 2025-10
 ###
-### This code applies and plots a regression tree of SDM predictions, one per focal_species, based on decisions each team made.
+### This code applies and plots a regression tree of SDM predictions, one per species_focal, based on decisions each team made.
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/Code/Cluster Analysis for Prediction Rasters.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/02_analysis_of_enm_methods_plurality.r')
 ###
 ### CONTENTS ###
 ### setup ###
 ### analysis-wide settings ###
 ### custom functions ###
+###
+### make maps of all rasters for inspection ###
+### create random points from which to draw predictions across all team rasters ###
+### extract values for predictions at same sites across all rasters ###
+###
 ### PCA on teams: cluster analysis of teams by predictions ###
 ### cluster constancy ###
 ### heatmaps of correlations between predictions ###
@@ -27,6 +32,7 @@
 	library(cluster) # clustering
 	library(cowplot) # combining ggplots
 	library(data.table) # fast data frames
+	library(distances) # fast distance calculation
 	library(enmSdmX) # SDMing and GIS
 	library(ggdendro) # plotting dendrograms
 	library(ggplot2) # graphics
@@ -53,19 +59,16 @@
 ### analysis-wide settings ###
 ##############################
 
-	# focal_species <- 'Priona'
-	focal_species <- 'Zamia'
-
-	say('Analyzing species: ', focal_species, level = 3)
+	species_focal <- 'Priona'
+	# species_focal <- 'Zamia'
 
 	# spreadsheet that scores attributes for each workflow
-	fields_file_name <- './Data/Model_choices_2025_08_29_Anonymized_Team_Edits_2024_10_29.xlsx'
+	fields_file_name <- './Data/Model_choices_2025_11_06.xlsx'
 
-	say('Using workflow attributes file: ', fields_file_name, level = 3)
+	# number of random points to keep that have predictions across all teams' rasters
+	n_rand_points_to_keep <- 100000
 
-	# if TRUE, use generic team names
-	# anonymize <- TRUE
-	anonymize <- FALSE
+	say('Using workflow attributes file: ', fields_file_name, level = 1, deco = '!')
 
 	min_variance <- 0.85 # for clustering by PC loadings, keep axes that explain at least this much variance
 	max_height <- 0.5 # in dendrogram of teams, if groups of teams are more different than this, then define them as different clusters
@@ -74,172 +77,150 @@
 	cluster_cols_mid <- c('1' = '#00b0f6', '2' = '#f8766d', '3' = '#e76bf3', '4' = '#00bf7d', '5' = '#FFD966')
 	cluster_cols_late <- c('1' = '#00b0f6', '2' = '#f8766d', '3' = '#e76bf3', '4' = '#00bf7d', '5' = '#FFD966')
 
-	full_species <- if (species == 'Priona') {
+	species_full <- if (species_focal == 'Priona') {
 		'Prionailurus bengalensis'
 	} else {
 		'Zamia prasina'
 	}
 
+	say('Analyzing ', species_full, level = 1, deco = '!')
+
+	dirCreate(paste0('./Outputs ', species_full))
+
 ########################
 ### custom functions ###
 ########################
 
-	# load_fields(): loads wordbook with attributes of each team's workflow
+	# get_nice_period(): Convert period ('present', 'mid', and 'late') to nice version for folder names
+	# load_team_codes(): loads table with team codes
+	# load_rast_fields(): loads workbook with attributes of each team's rasters
+	# load_team_fields(): loads workbook with attributes of each team
 	# load_predictions(): loads SDM predictions
-	# anonymize_teams(): takes a vector of team names and replaces them with codes for each team
 	# wide_to_long(): converts a wide data.table (from load_predictions()) and converts to long format
+	# fill_terrestrial_NAs(): fills terrestrial NA cells in a projection raster with 0s based on appropriate land/sea mask and resolution
+
+	### Convert period ('present', 'mid', and 'late') to nice version for folder names
+	get_nice_period <- function(period) {
+		if (period == 'present') {
+			'Present'
+		} else if (period == 'mid') {
+			'Mid-20th Century'
+		} else if (period == 'late') {
+			'Late 20th Century'
+		} else {
+			stop('Bad period name.')
+		}
+	}
+
+	### loads table with team codes
+	load_team_codes <- function() fread('./Outputs Shared/team_info.csv')
 
 	# function to load data on workflow choices
-	# focal_species		Either 'Priona' or 'Zamia'
+	# species_focal		Either 'Priona' or 'Zamia'
 	#
 	# returns data.table of modeling choices
-	load_fields <- function(focal_species) {
+	load_rast_fields <- function(species_focal) {
 
-		if (focal_species == 'Priona') {
-			fields <- read_xlsx(fields_file_name, sheet = 'Data COLLATED CAT')
-		} else if (focal_species == 'Zamia') {
-			fields <- read_xlsx(fields_file_name, sheet = 'Data COLLATED CYCAD')
+		if (species_focal == 'Priona') {
+			fields <- read_xlsx(fields_file_name, sheet = 'Scoring by Raster CAT')
+		} else if (species_focal == 'Zamia') {
+			fields <- read_xlsx(fields_file_name, sheet = 'Scoring by Raster CYCAD')
 		}
 		fields <- as.data.table(fields)
 		fields
 	}
 
-	# function to load predictions and do routine pre-processing
-	# focal_species		Either 'Priona' or 'Zamia'
-	# period			'present', 'mid', or 'late'
-	# scaled			If `TRUE`, load standardized values in the range [0, 1]
-	# subset_teams		If `TRUE`, just return columns with predictions (only relevant for "scaled" predictions)
-	# discardNAs		If `TRUE`, remove rows with at least one `NA`.
-	#
-	# returns data.table with predictions (one column per team)
-	load_predictions <- function(focal_species, period, scaled, subset_teams = TRUE, discardNAs = TRUE) {
-		
-		if (focal_species == 'Priona' & period == 'present') {
+	load_team_fields <- function(species_focal) {
 
-			if (!scaled) {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cat_Pbengalensis/raw/cat_present_raw.csv')
-				coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-				wide <- cbind(coords, wide)
-			} else {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cat_Pbengalensis/standardized/cat_present_standardized.csv')
-			}
-			names(wide) <- sub(names(wide), pattern = '_cat_rast', replacement = '')
-
-		} else if (focal_species == 'Priona' & period == 'mid') {
-
-			if (!scaled) {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cat_Pbengalensis/raw/cat_T1_raw.csv')
-				coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-				wide <- cbind(coords, wide)
-			} else {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cat_Pbengalensis/standardized/cat_T1_standardized.csv')
-			}
-			names(wide) <- sub(names(wide), pattern = '_T1_cat_rast', replacement = '')
-		
-		} else if (focal_species == 'Priona' & period == 'late') {
-		
-			if (!scaled) {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cat_Pbengalensis/raw/cat_T2_raw.csv')
-				coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-				wide <- cbind(coords, wide)
-			} else {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cat_Pbengalensis/standardized/cat_T2_standardized.csv')
-			}
-			names(wide) <- sub(names(wide), pattern = '_T2_cat_rast', replacement = '')
-
-		} else if (focal_species == 'Zamia' & period == 'present') {
-		
-			if (!scaled) {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cycad_Zprasina/raw/cycad_present_raw2.csv')
-				coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-				wide <- cbind(coords, wide)
-			} else {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cycad_Zprasina/standardized/cycad_present_standardized2.csv')
-			}
-			names(wide) <- sub(names(wide), pattern = '_cycad_rast', replacement = '')
-		
-		} else if (focal_species == 'Zamia' & period == 'mid') {
-		
-			if (!scaled) {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cycad_Zprasina/raw/cycad_T1_raw2.csv')
-				coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-				wide <- cbind(coords, wide)
-			} else {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cycad_Zprasina/standardized/cycad_T1_standardized2.csv')
-			}
-
-			names(wide) <- sub(names(wide), pattern = '_T1_cycad_rast', replacement = '')
-			names(wide) <- sub(names(wide), pattern = '_T1_cycad', replacement = '')
-			names(wide) <- sub(names(wide), pattern = 'ondo_T1', replacement = 'ondo')
-		
-		} else if (focal_species == 'Zamia' & period == 'late') {
-		
-			if (!scaled) {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cycad_Zprasina/raw/cycad_T2_raw.csv')
-				coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-				wide <- cbind(coords, wide)
-			} else {
-				wide <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/cycad_Zprasina/standardized/cycad_T2_standardized.csv')
-			}
-			names(wide) <- sub(names(wide), pattern = '_T2_cycad_rast', replacement = '')
-		
+		if (species_focal == 'Priona') {
+			fields <- read_xlsx(fields_file_name, sheet = 'Scoring by Team CAT')
+		} else if (species_focal == 'Zamia') {
+			fields <- read_xlsx(fields_file_name, sheet = 'Scoring by Team CYCAD')
 		}
-
-		while (any(names(wide) == 'V1')) wide$V1 <- NULL
-
-		if (subset_teams) {
-			wide$longitude <- NULL
-			wide$latitude <- NULL
-		}
-
-		# maxs <- apply(wide, 2, max, na.rm = TRUE)
-		# if (any(is.infinite(maxs))) {
-		# 	keeps <- which(!is.infinite(maxs))
-		# 	wide <- wide[ , ..keeps]
-		# }
-
-		if (discardNAs) wide <- wide[complete.cases(wide)]
-
-		# clean names
-		pattern <- 'jimenez'
-		replace <- 'Jiménez-Valverde'
-		names(wide)[grepl(names(wide), pattern = pattern)] <- sub(names(wide)[grepl(names(wide), pattern = pattern)], pattern = pattern, replacement = replace)
-
-		pattern <- 'zarzo'
-		replace <- 'Zarzo-Arias'
-		names(wide)[grepl(names(wide), pattern = pattern)] <- sub(names(wide)[grepl(names(wide), pattern = pattern)], pattern = pattern, replacement = replace)
-
-		pattern <- 'serradiaz'
-		replace <- 'Serra-Diaz'
-		names(wide)[grepl(names(wide), pattern = pattern)] <- sub(names(wide)[grepl(names(wide), pattern = pattern)], pattern = pattern, replacement = replace)
-
-		pattern <- 'ramirez'
-		replace <- 'Ramirez-Reyes'
-		names(wide)[grepl(names(wide), pattern = pattern)] <- sub(names(wide)[grepl(names(wide), pattern = pattern)], pattern = pattern, replacement = replace)
-
-		fields <- load_fields(focal_species = focal_species)
-		teams <- fields$team
-		for (team in teams) {
-			names(wide) <- gsub(names(wide), pattern = tolower(team), replacement = team)
-		}
-
-		names(wide) <- gsub(names(wide), pattern = '_v1', replacement = ' 1')
-		names(wide) <- gsub(names(wide), pattern = '_v2', replacement = ' 2')
-		names(wide) <- gsub(names(wide), pattern = '_v3', replacement = ' 3')
-		names(wide) <- gsub(names(wide), pattern = '_v4', replacement = ' 4')
-
-		wide
-
+		fields <- as.data.table(fields)
+		fields
 	}
 
-	# replace team name with 'Team 1', 'Team 2', etc.
-	#
-	# teams			Character vector of team names
-	# period		'present', 'mid', or 'late'
-	anonymize_teams <- function(teams, focal_species) {
+	### load predictions at sites shared by all rasters
+	# period		'all' (all periods), 'present', 'mid', or 'late'
+	# scaled		TRUE ==> scale predictions to [0, 1], FALSE ==> return raw scores
+	# subset_teams  TRUE ==> return data frame with just columns with predictions, FALSE ==> return all columns in extraction frame (e.g., coordinates)
+	# discardNAs	TRUE ==> remove rows in which there is at least one NA
+	load_predictions <- function(period = 'all', scale = TRUE, subset_teams = TRUE) {
 
-		team_codes <- fread(paste0('./Analysis/team_codes_', tolower(focal_species), '.csv'), encoding = 'UTF-8')
-		team_codes$code[match(teams, team_codes$team)]
+		out <- readRDS(paste0('./Outputs ', species_full, '/Extractions to Random Sites.rds'))
+		if (subset_teams) out[ , c('longitude', 'latitude') := NULL]
+		# if (discardNAs) out <- out[complete.cases(out)]
+		if (period != 'all') {
+			col_indices <- which(grepl(names(out), pattern = paste0('_', period)))
+			out <- out[ , ..col_indices]
+		}
+
+		if (scale) {
+			
+			fields <- load_rast_fields(species_focal)
+
+			min_max <- readRDS(paste0('./Outputs ', species_full, '/Extractions to Random Sites Minium & Maximum Values across Rasters.rds'))
+			min_max$base_raster <- substr(min_max$raster, 1, 1)
+			team_info <- fread('./Outputs Shared/team_info.csv')
+			codes <- team_info$code
+
+			column_base_codes <- substr(names(out), 1, 1)
+			column_base_codes_subs <- substr(names(out), 1, 2)
+			column_base_codes_subs <- sub(column_base_codes_subs, pattern = '_', replacement = '')
+
+			# get min/max value for each team from continuous rasters
+			# NB We may need to match rasters across time periods
+			# For example, a team submits one present-day raster, then two for each future. Here, it's OK to standardize all using the same values.
+			# Counter-example: A team submits two present-day rasters using two different SDM algorithms. The present and future rasters should be scaled independently of one another by the algorithm that was used.
+			# To do this, we use the "standardize_group" field in the "Scoring by Raster" sheets
+			for (i in seq_along(codes)) {
+
+				this_team_code <- codes[i]
+				stand_groups <- fields$standardize_group[fields$team_code == this_team_code]
+				stand_groups <- unique(stand_groups)
+
+				min_max_team <- min_max[base_raster == this_team_code]
+
+				# just one group of rasters by the team we need to standardize
+				if (length(stand_groups) == 1) {
+				
+
+					min_val <- min(min_max_team$min, na.rm = TRUE)
+					max_val <- max(min_max_team$max, na.rm = TRUE)
+
+					cols <- which(column_base_codes == this_team_code)
+					for (col in cols) {
+						out[[col]] <- (out[[col]] - min_val) / (max_val - min_val)
+					}
+				
+				} else { # more than one group to standardize
+
+					for (group in seq_along(stand_groups)) {
+						
+						stand_group <- stand_groups[group]
+						rasts_in_group <- fields$raster_code[fields$team_code == this_team_code & fields$standardize_group == stand_group]
+						rasts_in_group <- paste0(this_team_code, rasts_in_group)
+
+						this_min_max_team <- min_max_team[raster %in% rasts_in_group]
+
+						min_val <- min(this_min_max_team$min, na.rm = TRUE)
+						max_val <- max(this_min_max_team$max, na.rm = TRUE)
+
+						cols <- which(column_base_codes_subs %in% rasts_in_group)
+						for (col in cols) {
+							out[[col]] <- (out[[col]] - min_val) / (max_val - min_val)
+						}
+
+					}
+				
+				}
+
+
+			}
+	
+		}
+		out
 
 	}
 
@@ -258,118 +239,358 @@
 
 	}
 
+	# replace NA cells in projection raster with 0s based on land/sea mask using appropriate data source and resolution
+	# r 			projection raster
+	# team_code		team code (e.g., "A", "B", etc.)			
+	# team_info 	output of load_team_fields()
+	fill_terrestrial_NAs <- function(r, team_code, team_info) {
+
+		climate_source <- team_info$predictors_climate_source[team_info$team_code == team_code]
+		resol <- team_info$res[team_info$team_code == team_code]
+
+		r_name <- names(r)
+
+		extent <- ext(r)
+		extent <- as.polygons(extent, crs = getCRS(r))
+		extent <- buffer(extent, 80000)
+
+		if (climate_source == 'CHELSA') {
+			zeros <- rast('./Data/Land Mask CHELSA/landseamask.tif')
+		} else if (climate_source == 'WorldClim') {
+			zeros <- rast('./Data/Land Mask WorldClim/worldclim_21_mask.tif')
+		}
+		
+		zeros <- crop(zeros, extent)
+
+		if (resol == '2.5 arcmin') {
+			zeros <- aggregate(zeros, fact = 5, fun = 'mean')
+		} else if (resol == '5 arcmin') {
+			zeros <- aggregate(zeros, fact = 10, fun = 'mean')
+		} else if (resol == '10 arcmin') {
+			zeros <- aggregate(zeros, fact = 20, fun = 'mean')
+		} else if (resol == '0.5 deg') {
+			zeros <- aggregate(zeros, fact = 60, fun = 'mean')
+		} else if (resol == '1000×1000 m') {
+			zeros <- resample(zeros, r, method = 'mode')
+		} else if (resol != '30 arcsec') {
+			stop('Do not know how to proceed with this resolution.')
+		}
+
+		# combine prediction raster and 0s raster
+		zeros <- resample(zeros, r, method = 'mode')
+		r_zeros <- c(r, zeros)
+		r <- sum(r_zeros, na.rm = TRUE)		
+		names(r) <- r_name
+		r
+
+	}
+
+say('###############################################')
+say('### make maps of all rasters for inspection ###')
+say('###############################################')
+
+	# make PDf containing all maps from present day for each team.
+	files <- listFiles(paste0('./Submissions/Rasters ', species_full, ' Present'))
+	pdf(paste0('./Outputs ', species_full, '/Maps ', species_full, ' Present.pdf'), width = 10, height = 10)
+	for (i in seq_along(files)) {
+
+		file <- files[i]
+		r <- rast(file)
+		name <- basename(file)
+		say(name)
+
+		plot(r, main = name)
+
+	}
+	dev.off()
+
+	# make PDf containing all maps for mid-century for each team.
+	files <- listFiles(paste0('./Submissions/Rasters ', species_full, ' Mid-20th Century'))
+	pdf(paste0('./Outputs ', species_full, '/Maps ', species_full, ' Mid-20th Century.pdf'), width = 10, height = 10)
+	for (i in seq_along(files)) {
+
+		file <- files[i]
+		r <- rast(file)
+		name <- basename(file)
+		say(name)
+
+		plot(r, main = name)
+
+	}
+	dev.off()
+
+	# make PDf containing all maps for  late century for each team.
+	files <- listFiles(paste0('./Submissions/Rasters ', species_full, ' Late 20th Century'))
+	pdf(paste0('./Outputs ', species_full, '/Maps ', species_full, ' Late 20th Century.pdf'), width = 10, height = 10)
+	for (i in seq_along(files)) {
+
+		file <- files[i]
+		r <- rast(file)
+		name <- basename(file)
+		say(name)
+
+		plot(r, main = name)
+
+	}
+	dev.off()
+
+say('###################################################################################')
+say('### create random points from which to draw predictions across all team rasters ###')
+say('###################################################################################')
+
+	# Here we create a set of random points from which to draw predictions across all teams' rasters. Since each set of rasters has a different extent, we'll fine the smallest region that encompasses  all of the rasters, then within this extent place a large number of random sites. We do this by converting each raster to 1/NA values, converting to a polygon, then taking the intersection of the polygons across all species.
+
+	# NB for Zamia, the region that encompasses non-NA cells across all rasters is exceedingly small. To ameliorate this, we'll take the liberty of replacing terrestrial NA cells with a value of 0. We will use the appropriate data set (CHELSA or WorldClim) and resolution to fill in terrestrial cells. We will not expand the extent of rasters.
+
+	team_info <- load_team_fields(species_focal = species_focal)
+
+	### get common extent
+	# Convert each rasters to a polygon
+	say('Collating projection extents...')
+	polys <- list()
+	periods <- c('present', 'mid', 'late')
+	count_polys <- 1 # counter for list item storing polygons
+	for (count_period in seq_along(periods)) {
+
+		period <- periods[count_period]
+		period_nice <- get_nice_period(period)
+
+		files <- listFiles(paste0('./Submissions/Rasters ', species_full, ' ', period_nice, ' Anonymized'))
+
+		for (count_file in seq_along(files)) {
+
+			file <- files[count_file]
+			r <- rast(file)
+			name <- basename(file)
+			say(name, ' ', period)
+
+			# fill terrestrial NA cells with 0s
+			if (species_focal == 'Zamia') {
+				team_code <- sub(name, pattern = '.tif', replacement = '')
+				team_code <- substr(team_code, 1, 1)
+				r <- fill_terrestrial_NAs(r, team_code = team_code, team_info = team_info)
+			}
+
+			r[!is.na(r)] <- 1
+			v <- as.polygons(r)
+			polys[[count_polys]] <- v
+
+			count_polys <- count_polys + 1
+
+		} # next file
+
+	} # next period
+
+	# find area in common among all polygons
+	say('Intersecting...')
+	common <- polys[[1]]
+	for (i in 2:length(polys)) {
+	
+		if (!same.crs(common, polys[[i]])) polys[[i]] <- project(polys[[i]], common)
+		poly <- crop(polys[[i]], common)
+		common <- intersect(common, poly)
+	
+	}
+
+	common_buff <- buffer(common, 10000)
+	common_buff <- aggregate(common_buff)
+	n <- round(2 * n_rand_points_to_keep)
+	rands <- spatSample(common_buff, n)
+
+	writeVector(common, paste0('./Outputs ', species_full, '/common_study_region.gpkg'), overwrite = TRUE)
+	writeVector(rands, paste0('./Outputs ', species_full, '/common_study_region_random_points.gpkg'), overwrite = TRUE)
+
 say('#######################################################################')
 say('### extract values for predictions at same sites across all rasters ###')
 say('#######################################################################')
 
 	# This chunk extracts values from prediction rasters for the present and two future time periods for each team's rasters at a pre-defined set of random points. It also collates the minimum and maximum values of predictions across each raster for standardization of predictions in some subsequent analyses.
 
-	minMax <- data.table()
+	team_info <- load_team_fields(species_focal = species_focal)
 
 	### random coordinates across each study region
-	if (species == 'Priona') {
-		coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Pbengalenesis.csv')
-	} else if (species == 'Zamia') {
-		coords <- fread('./Data/Extracted Point Dataframes Extracted by Anna 2025-07-27/coords_Zprasina.csv')
-	}
-	coords_vect <- vect(coords, geom = c('longitude', 'latitude'), crs = getCRS('WGS84'))
-	extracts <- coords
+	coords_vect <- vect(paste0('./Outputs ', species_full, '/common_study_region_random_points.gpkg'))
+	extracts <- crds(coords_vect)
+	extracts <- as.data.table(extracts)
 
-	### present-day predictions
-	rast_file_names <- listFiles(paste0('./Submissions/Rasters ', full_species, ' Present'))
-	rast_names <- basename(rast_file_names)
-	rast_names <- sub(rast_names, pattern = '.tif', replacement = '')
-	rast_names <- paste0(rast_names, '_present')
-	
-	for (i in seq_along(rast_file_names)) {
-	
-		# prediction raster
-		rast_file_name <- rast_file_names[i]
-		r <- rast(rast_file_name)
+	periods <- c('present', 'mid', 'late')
+	min_max <- data.table()
+	for (period in periods) {
 
-		# rename
-		names(r) <- rast_names[i]
+		period_nice <- get_nice_period(period)
 
-		# extract values to random points
-		stats <- minmax(r)
-		stats <- t(stats)
-		stats <- as.data.table(stats)
-		stats$raster <- names(r)
-		stats$period  <- 'present'
-		minMax <- rbind(minMax, stats)
+		files <- listFiles(paste0('./Submissions/Rasters ', species_full, ' ', period_nice, ' Anonymized'))
+		for (i in seq_along(files)) {
 
-		extraction <- extract(r, coords_vect, ID = FALSE)
-		extracts <- cbind(extracts, extraction)
-	
-	}
+			file <- files[i]
 
-	### mid- and late-century
-	for (period in c('mid', 'late')) {
+			say(period, ' ', basename(file))
 
-		nice_period <- if (period == 'mid') { 'Mid-' } else { 'Late '}
-		rast_file_names <- listFiles(paste0('./Submissions/Rasters ', full_species, ' ', nice_period, '20th Century'))
-		rast_names <- basename(rast_file_names)
-		rast_names <- gsub(rast_names, pattern = '.tif', replacement = '')
-		rast_names <- paste0(rast_names, '_', period)
+			# raster file name
+			r <- rast(file)
+			name <- basename(file)
 
-		for (i in seq_along(rast_file_names)) {
-		
-			# prediction raster
-			rast_file_name <- rast_file_names[i]
-			r <- rast(rast_file_name)
+			# fill terrestrial NA cells with 0s
+			if (species_focal == 'Zamia') {
+				team_code <- sub(name, pattern = '.tif', replacement = '')
+				team_code <- substr(team_code, 1, 1)
+				r <- fill_terrestrial_NAs(r, team_code = team_code, team_info = team_info)
+			}
 
-			# rename
-			names(r) <- rast_names[i]
-
-			# extract to random points
+			# extract values to random points
 			stats <- minmax(r)
 			stats <- t(stats)
 			stats <- as.data.table(stats)
-			stats$raster <- rast_names[i]
+			stats$raster <- names(r)
 			stats$period  <- period
-			minMax <- rbind(minMax, stats)
+
+			# thresholded?
+			unis <- unique(r)
+			if (nrow(unis) == 2) {
+				stats$binary_threshold <- TRUE
+			} else {
+				stats$binary_threshold <- FALSE
+			}
+
+			min_max <- rbind(min_max, stats)
 
 			extraction <- extract(r, coords_vect, ID = FALSE)
+			names(extraction) <- paste0(names(extraction), '_', period)
 			extracts <- cbind(extracts, extraction)
-		
-		}
 
-	} # next future period
-		
-	saveRDS(extracts, paste0('./Data/Extractions to Random Sites - ', full_species, '.rds'))
-	saveRDS(minMax, paste0('./Data/Extractions to Random Sites Minium & Maximum Values across Rasters - ', full_species, '.rds'))
+		} # next file
 
+	} # next period
+
+	extracts <- extracts[complete.cases(extracts)]
+	if (nrow(extracts) > n_rand_points_to_keep) {
+		extracts <- extracts[sample(nrow(extracts), n_rand_points_to_keep)]
+	} else {
+		stop('Cannot ensure ', n_rand_points_to_keep, ' random points have predictions for all rasters.')
+	}
+
+	colnames(extracts)[1:2] <- c('longitude', 'latitude')
+
+	saveRDS(extracts, paste0('./Outputs ', species_full, '/Extractions to Random Sites.rds'))
+	saveRDS(min_max, paste0('./Outputs ', species_full, '/Extractions to Random Sites Minium & Maximum Values across Rasters.rds'))
 print(NON)
+# # # say('##########################################################################')
+# # # say('### cluster analysis of teams based on predictions at shared locations ###')
+# # # say('##########################################################################')
+
+# # # 	n_sites_for_clustering <- 100000
+# # # 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+
+# # # 	preds <- preds[ , !grepl('N4|N5|N6', names(preds)), with = FALSE]
+
+# # # 	preds <- preds[1:n_sites_for_clustering] # for development
+# # # 	preds <- t(preds)
+
+# # # 	clust <- fanny(x = preds, diss = FALSE, k = 3, metric = 'euclidean', stand = FALSE)
+
+# # # 	dists <- dist(preds)
+# # # 	clust <- hclust(dists)
+# # # 	plot(clust)
+
+# # # 	library(factoextra)
+# # # 	library(fpc)
+# # # 	library(dbscan)
+
+# # # 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# # # preds <- preds[1:n_sites_for_clustering] # for development
+# # # 	preds <- t(preds)
+
+# # # 	# dists <- dist(preds)
+
+# # # 	db <- fpc::dbscan(preds, eps = 60, MinPts = 3, method = 'hybrid')
+# # # 	dbscan::kNNdistplot(preds, k = 3)
+# # # 	abline(h = 70, lty = 'dashed')
+# # # 	abline(h = 65, lty = 'dotted')
+# # # 	abline(h = 60, lty = 'dashed')
+# # # 	abline(h = 55, lty = 'dashed')
+# # # 	abline(h = 50, lty = 'dashed')
+
+# # # 	db <- fpc::dbscan(preds, eps = 60, MinPts = 3, method = 'hybrid')
+# # # 	print(db)
+
+# # # 	fviz_cluster(db, data = preds, stand = FALSE, ellipse = TRUE, show.clust.cent = FALSE, geom = 'point', palette = 'jco', ggtheme = theme_classic())
+
+# # # 	library(NbClust)
+# # # 	library(clValid)
+
+
+# # # 	preds <- load_predictions(period = 'present', scale = TRUE, subset_teams = TRUE)
+# # # preds <- preds[1:20000] # for development
+# # # 	preds <- t(preds)
+
+
+# # # 	clust_methods <- c('hierarchical', 'diana', 'agnes', 'kmeans', 'pam', 'som', 'sota')
+# # # 	validation  <- c('internal', 'stability')
+# # # 	method <- 'complete' # for hierarchical
+
+# # # 	Sys.time()
+# # # 	clusts <- clValid(preds, nClust = 2:3, clMethod = clust_methods, validation = validation, method = method, verbose = TRUE)
+# # # 	Sys.time()
+
+# # # 	summary(clusts)
+# # # 	optimalScores(clusts)
+
+
+# # # 	clust <- eclust(preds, FUNcluster = 'hclust', hc_metric = 'euclidean', hc_method = 'ward.D2', method = 'silhouette', verbose = TRUE)
+
+
+# # # print(NONNONNON)
+
 
 say('##############################################################')
 say('### PCA on teams: cluster analysis of teams by predictions ###')
 say('##############################################################')
 
-	### Create a dendrogram of predictions and PCA biplot on predictions for a single species for each time period in which teams are clustered by hierarchical partitioning of PC loadings. Several of the following script chunks rely on output from this analysis, so we should run this one first.
+	### Create a dendrogram of predictions and PCA biplot on predictions for a single species for each time period. Teams are clustered by hierarchical partitioning of PC loadings. Several of the subsequent script chunks rely on output from this analysis, so we should run this one first.
 
-	### PCA on all predictions (teams/time periods/raster versions) at once. Use these loadings to group the teams by Euclidean distance of PC loadings.
+	# user-defined
+	title_text_size <- 18 # for plots
 
-	title_text_size <- 18
+	# number of sites to use for clustering
+	n_sites_for_clustering <- 10000 # development
+	# n_sites_for_clustering <- 1000000 # real analysis
+
+	team_codes <- load_team_codes()
 
 	### construct PCA on all time periods' and teams' scaled predictions
 
-		wide_present <- load_predictions(focal_species, period = 'present', scaled = TRUE, subset_teams = TRUE, discardNAs = FALSE)
-		wide_mid <- load_predictions(focal_species, period = 'mid', scaled = TRUE, subset_teams = TRUE, discardNAs = FALSE)
-		wide_late <- load_predictions(focal_species, period = 'late', scaled = TRUE, subset_teams = TRUE, discardNAs = FALSE)
+		wides <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+		wides <- wides[1:n_sites_for_clustering]
 
-		names(wide_present) <- paste(names(wide_present), 'present')
-		names(wide_mid) <- paste(names(wide_mid), 'mid')
-		names(wide_late) <- paste(names(wide_late), 'late')
-
-		wides <- cbind(wide_present, wide_mid, wide_late)
-		wides <- wides[complete.cases(wides)]
+		# # remove thresholded mid-century and late century rasters from team N which tend to overly skew the clusters
+		# removes <- 'N4a_mid|N4b_mid|N5a_mid|N5b_mid|N6a_mid|N6b_mid|N4a_late|N4b_late|N5a_late|N5b_late|N6a_late|N6b_late'
+		# wides <- wides[ , !grepl(removes, names(wides)), with = FALSE]
 
 		# reduce dimensionality
 		trans <- t(wides)
 		pca <- prcomp(trans)
 
-		x_lim <- range(pca$x[ , 'PC1'])
-		y_lim <- range(pca$x[ , 'PC2'])
+		# fviz_pca_ind(pca)
+
+		# dists <- distances(trans, normalize = NULL, weights = NULL)
+		# dists <- distance_matrix(dists)
+
+		# clust <- hclust(dists, method = 'complete')
+		# clust$labels <- names(wides)[clust$order]
+
+		# from ?hopkins::hopkins on clustertend::hopkins(): "The value returned is: 1 - Hopkins statistic." For hopkins::hopkins(): "Calculated values 0-0.3 indicate regularly-spaced data. Values around 0.5 indicate random data. Values 0.7-1 indicate clustered data."
+		sink(paste0('./Outputs ', species_full, '/hopkins_statistic.txt'), split = TRUE)
+		say('Hopkins statistic from clustertend::hopkins():')
+		say('0-0.3 ==> clustered data; ~0.5 ==> random; 0.7-1 ==> uniform data.')
+		say('Observed:')
+		print(clustertend::hopkins(trans))
+		say(date())
+		sink()
+
+		# x_lim <- range(pca$x[ , 'PC1'])
+		# y_lim <- range(pca$x[ , 'PC2'])
+
+	### evaluate optimal number of clusters
 
 	periods <- c('present', 'mid', 'late')
 	biplot <- biplots_sans_teams <- dendro_pca <- list()
@@ -388,8 +609,9 @@ say('##############################################################')
 			'C) Late 20th century'
 		}
 
-		wide <- load_predictions(focal_species, period = period, scaled = TRUE)
-		teams_period <- paste(names(wide), period)
+		wide <- load_predictions(period = period, scale = TRUE)
+		# wide <- wide[ , !grepl(removes, names(wide)), with = FALSE]
+		teams_period <- names(wide)
 		scores <- pca$x[rownames(pca$x) %in% teams_period, ]
 
 		# keep only first set of PCs that together explain at least X% of variance
@@ -398,22 +620,29 @@ say('##############################################################')
 		keeps <- c(keeps, tail(keeps, 1) + 1)
 		scores <- as.data.frame(scores)
 		scores <- scores[ , keeps]
+		rownames(scores) <- gsub(rownames(scores), pattern = paste0('_', period), replacement = '')
 
 		teams_scores <- rownames(scores)
-		teams_scores <- gsub(teams_scores, pattern = paste0(' ', period), replacement = '')
-		rownames(scores) <- teams_scores
 
-		# # optimal number of clusters using gap statistic
-		# # gaps <- clusGap(scores, FUNcluster = kmeans, B = 1000, K.max = ceiling(sqrt(nrow(scores))))
-		# gaps <- clusGap(scores, FUNcluster = pam, B = 1000, K.max = ceiling(sqrt(nrow(scores))))
+		# optimal number of clusters using gap statistic
+		# gaps <- clusGap(scores, FUNcluster = kmeans, B = 1000, K.max = ceiling(sqrt(nrow(scores))))
+		# gaps <- clusGap(scores, FUNcluster = kmeans, B = 1000, K.max = ceiling(sqrt(nrow(scores))))
 		# gaps <- gaps$Tab[ , 'gap']		
 		# optimal_n_clusters <- which.min(gaps)
+		optimal_n_clusters <- if (period == 'present') {
+			4
+		} else if (period == 'mid') {
+			3
+		} else {
+			3
+		}
 
 		# cluster predictions
 		dists <- dist(scores)
-		dendro <- hclust(dists)
-		# clusters <- cutree(dendro, k = optimal_n_clusters)  # pre-defined number of groups (from previous)
-		clusters <- cutree(dendro, h = max_height * max(dendro$height))  # choose number of clusters
+		dendro <- hclust(dists, method = 'ward.D')
+		clusters <- cutree(dendro, k = optimal_n_clusters)  # pre-defined number of groups (from previous)
+		# clusters <- cutree(dendro, h = max_height * max(dendro$height))  # choose number of clusters
+		names(clusters) <- sub(names(clusters), pattern = paste0('_', period), replacement = '')
 
 		dend <- as.dendrogram(dendro)
 		dend_data <- dendro_data(dend)
@@ -421,41 +650,27 @@ say('##############################################################')
 
 		# move lower part of graph up because team names are cut off otherwise	
 		min_label_y <- min(label(dend_data)$y - 0.32)
-		if (anonymize) {
-			bottom_margin <- 15
-		} else {
-			bottom_margin <- 80
-		}
+		# bottom_margin <- 80
+		bottom_margin <- 20
 		
 		leaf_labels <- label(dend_data)
-		if (anonymize) {
-			clusters_anon <- clusters
-			names(clusters_anon) <- anonymize_teams(names(clusters_anon), focal_species = focal_species)
-			leaf_labels$label <- anonymize_teams(leaf_labels$label, focal_species = focal_species)
-			leaf_labels$cluster <- as.factor(clusters_anon[match(leaf_labels$label, names(clusters_anon))])
-		} else {
-			leaf_labels$cluster <- as.factor(clusters[match(leaf_labels$label, names(clusters))])
-		}
-
+		leaf_labels$label <- sub(leaf_labels$label, pattern = paste0('_', period), replacement = '')
+		leaf_labels$cluster <- as.factor(clusters[match(leaf_labels$label, names(clusters))])
+		
 		n_clusters <- length(unique(clusters))
 		cluster_cols <- get(paste0('cluster_cols_', period))
 		cluster_cols <- cluster_cols[1:n_clusters]
 
-		if (anonymize) dend_data$labels$label <- anonymize_teams(teams = dend_data$labels$label, focal_species = focal_species)
+		dend_data$labels$label <- sub(dend_data$labels$label, pattern = paste0('_', period), replacement = '')
 		dendrogram <- ggplot(segment(dend_data)) +
 			geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) +
 			labs(title = NULL, x = NULL, y = NULL) +
 			scale_y_continuous(expand = c(0, 0), limits = c(min_label_y - 0.05, NA)) +
 			scale_x_continuous(expand = c(0, 0), limits = c(min(label(dend_data)$x) - 1, max(label(dend_data)$x) + 0.5)) +
-			# geom_point(
-			# 	data = leaf_labels,
-			# 	aes(x = x, y = y, color = cluster),
-			# 	size = 4
-			# ) +
 			geom_text(
 				data = leaf_labels,
 				aes(x = x, y = y - 0.04, label = label, color = cluster),
-				size = 5, hjust = 1, vjust = 0.4, angle = 90, show.legend = FALSE, fontface = 'bold'
+				size = 4, hjust = 1, vjust = 0.4, angle = 90, show.legend = FALSE, fontface = 'bold'
 			) +
 			scale_color_manual(values = cluster_cols) +
 			theme_minimal() +
@@ -476,7 +691,6 @@ say('##############################################################')
 		scores$team <- rownames(scores)
 		score_clusters <- clusters[match(names(clusters), scores$team)]
 		scores$cluster <- score_clusters
-		if (anonymize) scores$team <- anonymize_teams(scores$team, focal_species = focal_species)
 
 		# MCP for each cluster
 		polys <- list()
@@ -506,7 +720,7 @@ say('##############################################################')
 			'F) Late century'
 		}
 
-		team_codes <- fread(paste0('./Analysis/team_codes_', tolower(focal_species), '.csv'), encoding = 'UTF-8')
+
 		team_codes <- team_codes[team_codes$team %in% rownames(scores)]
 
 		# values <- team_codes$color
@@ -523,7 +737,7 @@ say('##############################################################')
 		y_lab <- paste0('PC 2 (', var2, '%)')
 
 		base_biplot <- ggplot() +
-			xlim(x_lim[1], x_lim[2]) + ylim(y_lim[1], y_lim[2]) +
+			# xlim(x_lim[1], x_lim[2]) + ylim(y_lim[1], y_lim[2]) +
 			coord_cartesian(clip = 'off') +
 			xlab(x_lab) + ylab(y_lab)
 
@@ -560,19 +774,17 @@ say('##############################################################')
 		teams <- rownames(scores)
 		team_colors <- rep('black', length(teams))
 		names(team_colors) <- teams
-		if (period == 'present' & focal_species == 'Priona') {
-			team_colors[names(team_colors) == 'Nobis'] <- cluster_cols[4]
-		} else if (period %in% c('mid', 'late') & focal_species == 'Priona') {
-			team_colors[names(team_colors) == 'Nobis'] <- cluster_cols[3]
-			team_colors[names(team_colors) %in% c('Zurell 1', 'Zurell 2')] <- cluster_cols[4]
-		}
+		# if (period == 'present' & species_focal == 'Priona') {
+		# 	team_colors[names(team_colors) == 'Nobis'] <- cluster_cols[4]
+		# } else if (period %in% c('mid', 'late') & species_focal == 'Priona') {
+		# 	team_colors[names(team_colors) == 'Nobis'] <- cluster_cols[3]
+		# 	team_colors[names(team_colors) %in% c('Zurell 1', 'Zurell 2')] <- cluster_cols[4]
+		# }
 		
-		if (period %in% c('mid', 'late') & focal_species == 'Zamia') {
-			team_colors[names(team_colors) %in% c('Aragon 2')] <- cluster_cols[2]
-		}
+		# if (period %in% c('mid', 'late') & species_focal == 'Zamia') {
+		# 	team_colors[names(team_colors) %in% c('Aragon 2')] <- cluster_cols[2]
+		# }
 		
-		if (anonymize) names(team_colors) <- anonymize_teams(names(team_colors), focal_species = focal_species)
-
 		biplot[[count_period]] <- adj_biplot +
 			geom_text(
 				data = scores,
@@ -583,26 +795,26 @@ say('##############################################################')
 			) +
 			scale_color_manual(values = team_colors)
 
-		dendro_pca[[count_period]] <- plot_grid(dendrogram, biplot[[count_period]], ncol = 1, align = 'v', rel_heights = c(0.4, 1))
-		saveRDS(clusters, paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_', period, '.rds'))
+		dendro_pca[[count_period]] <- plot_grid(dendrogram, biplot[[count_period]], ncol = 1, align = 'v', rel_heights = c(0.6, 1))
+		saveRDS(clusters, paste0('./Outputs ', species_full, '/', tolower(species_focal), '_clusters_of_teams_', period, '.rds'))
 
 	} # next period
 
 	names(biplots_sans_teams) <- c('present', 'mid', 'late')
-	saveRDS(biplots_sans_teams, paste0('./Analysis/', tolower(focal_species), '_pca_biplots_on_teams_with_groupings.rds'))
+	saveRDS(biplots_sans_teams, paste0('./Outputs ', species_full, '/pca_biplots_on_teams_with_groupings.rds'))
 
 	dendro_pcas <- plot_grid(plotlist = dendro_pca, ncol = 3, align = 'h')
-	ggsave(dendro_pcas, filename = paste0('./Analysis/', focal_species , ' Clustering of Teams', ifelse(anonymize, ' Anonymized', ''), '.png'), width = 18, height = 7.4, dpi = 600, bg = 'white')
-
+	ggsave(dendro_pcas, filename = paste0('./Outputs ', species_full, '/Clustering of Teams.png'), width = 18, height = 7.4, dpi = 600, bg = 'white')
+print(NON)
 say('#########################')
 say('### cluster constancy ###')
 say('#########################')
 
 	# How often do teams stay in a cluster with the same other team? Calculating this gives us a metric for cluster constancy.
 
-	present <- readRDS(paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_present.rds'))
-	mid <- readRDS(paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_mid.rds'))
-	late <- readRDS(paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_late.rds'))
+	present <- readRDS(paste0('./Analysis/', tolower(species_focal), '_clusters_of_teams_present.rds'))
+	mid <- readRDS(paste0('./Analysis/', tolower(species_focal), '_clusters_of_teams_mid.rds'))
+	late <- readRDS(paste0('./Analysis/', tolower(species_focal), '_clusters_of_teams_late.rds'))
 
 	# functions to calculate Jaccard index for each team's membership in clusters across time
 	get_neighbors <- function(clusters, focal_team) {
@@ -711,7 +923,7 @@ say('#########################')
 	
 	}
 
-	sink(paste0('./Analysis/', focal_species, ' Cluster Constancy.txt'), split = TRUE)
+	sink(paste0('./Analysis/', species_focal, ' Cluster Constancy.txt'), split = TRUE)
 	say('Mean Jaccard index across teams for its constancy of membership with other teams in clusters:')
 
 	mu <- mean(constancy_present_vs_mid)
@@ -734,7 +946,7 @@ say('####################################################')
 	heats <- list()
 	for (period in periods) {
 		
-		wide <- load_predictions(focal_species, period = period, scaled = FALSE, subset_teams = TRUE)
+		wide <- load_predictions(period = period, scaled = FALSE, subset_teams = TRUE)
 
 		if (period == 'present') {
 			title <- 'A) Present'
@@ -762,8 +974,8 @@ say('####################################################')
 		colnames(cors_long) <- c('team_1', 'team_2', 'correl')
 
 		if (anonymize) {
-			cors_long$team_1 <- anonymize_teams(cors_long$team_1, focal_species = focal_species)
-			cors_long$team_2 <- anonymize_teams(cors_long$team_2, focal_species = focal_species)
+			cors_long$team_1 <- anonymize_teams(cors_long$team_1, species_focal = species_focal)
+			cors_long$team_2 <- anonymize_teams(cors_long$team_2, species_focal = species_focal)
 		}
 
 		# heatmap
@@ -786,7 +998,7 @@ say('####################################################')
 
 	heatmaps <- plot_grid(plotlist = heats, ncol = 3)
 
-	ggsave(heatmaps, filename = paste0('./Analysis/', focal_species, ' Heatmap of Spearman Correlations Between Teams', ifelse(anonymize, ' Anonymized', ''), '.png'), width = 14, height = 4, dpi = 600, bg = 'white')
+	ggsave(heatmaps, filename = paste0('./Analysis/', species_focal, ' Heatmap of Spearman Correlations Between Teams', ifelse(anonymize, ' Anonymized', ''), '.png'), width = 14, height = 4, dpi = 600, bg = 'white')
 
 say('############################################')
 say('### distributions of predictions by team ###')
@@ -803,10 +1015,10 @@ say('############################################')
 		period <- periods[count_period]
 
 		# cluster
-		clusters <- readRDS(paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_', period, '.rds'))
+		clusters <- readRDS(paste0('./Analysis/', tolower(species_focal), '_clusters_of_teams_', period, '.rds'))
 		clusters <- sort(clusters)
 
-		wide <- load_predictions(focal_species = focal_species, period = period, scaled = TRUE, subset_teams = TRUE)
+		wide <- load_predictions(species_focal = species_focal, period = period, scaled = TRUE, subset_teams = TRUE)
 		wide[ , Mean := rowMeans(wide)]
 
 		# convert to long format
@@ -821,8 +1033,8 @@ say('############################################')
 		ordered_teams <- names(clusters)
 		if (anonymize) {
 		
-			ordered_teams <- anonymize_teams(ordered_teams, focal_species = focal_species)
-			long[ , team := anonymize_teams(team, focal_species = focal_species)]	
+			ordered_teams <- anonymize_teams(ordered_teams, species_focal = species_focal)
+			long[ , team := anonymize_teams(team, species_focal = species_focal)]	
 			long$team[is.na(long$team)] <- 'Mean'
 
 		}
@@ -866,7 +1078,7 @@ say('############################################')
 	distribs <- plot_grid(plotlist = distrib, nrow = 3, align = 'v')
 
 	height <- if (anonymize) { 8 } else { 11 }
-	ggsave(distribs, filename = paste0('./Analysis/', focal_species, ' Distribution of Predictions by Team', ifelse(anonymize, ' Anonymized', ''), '.png'), width = 8.5, height = 11, dpi = 600, bg = 'white')
+	ggsave(distribs, filename = paste0('./Analysis/', species_focal, ' Distribution of Predictions by Team', ifelse(anonymize, ' Anonymized', ''), '.png'), width = 8.5, height = 11, dpi = 600, bg = 'white')
 
 say('###########################################################################')
 say('### test for associations between team clusters and workflow attributes ###')
@@ -875,6 +1087,7 @@ say('###########################################################################
 	# Implements a *single* Kruskal-Wallis or contingency table analysis (with Fisher's exact test and simulate P values)-- according to covariate type--with cluster ID as the predictor.
 	#
 	# Count number of each unique value in y
+	#
 	# fields		data.table with workflow attributes
 	# nice      	Nice name for association (e.g., 'Occurrences: Number' or 'Occurrences: Source)
 	# period		'present, 'mid', 'late': time period of predictions
@@ -912,7 +1125,7 @@ say('###########################################################################
 					results,
 					data.table(
 						nice = nice,
-						focal_species = focal_species,
+						species_focal = species_focal,
 						period = period,
 						test = 'Contingency',
 						kw_chi_sq = NA_real_,
@@ -927,7 +1140,7 @@ say('###########################################################################
 					results,
 					data.table(
 						nice = nice,
-						focal_species = focal_species,
+						species_focal = species_focal,
 						period = period,
 						test = NA,
 						kw_chi_sq = NA_real_,
@@ -949,7 +1162,7 @@ say('###########################################################################
 				results,
 				data.table(
 					nice = nice,
-					focal_species = focal_species,
+					species_focal = species_focal,
 					period = period,
 					test = 'Kruskal-Wallis',
 					kw_chi_sq = kw$statistic,
@@ -1214,7 +1427,7 @@ say('###########################################################################
 
 		### algorithm: identity
 		
-			field_names <- c('algo_maxent', 'algo_maxnet', 'algo_brt_gbm', 'algo_glm', 'algo_gam', 'aglo_rf', 'algo_xgboost')
+			field_names <- c('algo_maxent', 'algo_maxnet', 'algo_brt_gbm', 'algo_glm', 'algo_gam', 'algo_rf', 'algo_xgboost')
 
 			for (i in seq_along(field_names)) {
 
@@ -1303,7 +1516,7 @@ say('###########################################################################
 		# ### occurrence data: number of sources
 
 		# 	field_names <- c('occurrence_data_gbif', 'occurrence_data_idigbio', 'occurrence_data_vertnet', 'occurrence_data_inaturalist', 'occurrence_data_publications')
-		# if (focal_species == 'Zamia') field_names <- c(field_names, occurrence_data_conabio)
+		# if (species_focal == 'Zamia') field_names <- c(field_names, occurrence_data_conabio)
 
 		# 	y <- fields[ , ..field_names]
 		# 	y <- y[ , lapply(.SD, as.numeric)]			
@@ -1317,7 +1530,7 @@ say('###########################################################################
 		# ### occurrence data: source
 			
 		# 	field_names <- c('occurrence_data_gbif', 'occurrence_data_idigbio', 'occurrence_data_vertnet', 'occurrence_data_inaturalist', 'occurrence_data_publications', 'occurrence_data_conabio)
-		# if (focal_species == 'Zamia') field_names <- c(field_names, occurrence_data_conabio)
+		# if (species_focal == 'Zamia') field_names <- c(field_names, occurrence_data_conabio)
 
 		# 	for (i in seq_along(field_names)) {
 
@@ -1423,7 +1636,7 @@ say('###########################################################################
 		
 		### taxonomy: accounted for subspecies
 			
-			if (focal_species == 'Priona') {
+			if (species_focal == 'Priona') {
 
 				y <- as.numeric(fields$taxonomy_mainland_only)
 
@@ -1552,12 +1765,12 @@ say('###########################################################################
 		
 	} # EOF
 
-	fields <- load_fields(focal_species)
+	fields <- load_fields(species_focal)
 
 	### add clusters to fields
-	clusters_present <- readRDS(paste0('./Analysis/', focal_species, '_clusters_of_teams_present.rds'))
-	clusters_mid <- readRDS(paste0('./Analysis/', focal_species, '_clusters_of_teams_mid.rds'))
-	clusters_late <- readRDS(paste0('./Analysis/', focal_species, '_clusters_of_teams_late.rds'))
+	clusters_present <- readRDS(paste0('./Analysis/', species_focal, '_clusters_of_teams_present.rds'))
+	clusters_mid <- readRDS(paste0('./Analysis/', species_focal, '_clusters_of_teams_mid.rds'))
+	clusters_late <- readRDS(paste0('./Analysis/', species_focal, '_clusters_of_teams_late.rds'))
 
 	fields_present <- fields_mid <- fields_late <- fields
 
@@ -1630,7 +1843,7 @@ say('###########################################################################
 	odmap <- readRDS('./Analysis/Summary of Assessment of SDM Workflows by SDM Standards.rds')
 
 	y <- odmap$means
-	y <- y[grepl(y$species, pattern = focal_species)]
+	y <- y[grepl(y$species, pattern = species_focal)]
 	criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
 	odmap_scores <- y[ , ..criteria]
 	odmap_means <- rowMeans(odmap_scores)
@@ -1665,7 +1878,7 @@ say('###########################################################################
 
 	### add MINIMUM of MEAN ODMAP score to fields
 	y <- odmap$means # reverse ranks so 4 = gold, 0 = deficient
-	y <- y[grepl(y$species, pattern = focal_species)]
+	y <- y[grepl(y$species, pattern = species_focal)]
 	criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
 	odmap_scores <- y[ , ..criteria]
 	odmap_mins <- apply(odmap_scores, 1, min)
@@ -1707,7 +1920,7 @@ say('###########################################################################
 		results_mid,
 		results_late
 	)
-	write.csv(results, paste0('./Analysis/', focal_species, ' Associations between Team Clusters and Workflow Attributes.csv'), row.names = FALSE)
+	write.csv(results, paste0('./Analysis/', species_focal, ' Associations between Team Clusters and Workflow Attributes.csv'), row.names = FALSE)
 
 say('####################################################################')
 say('### illustrations of team-level clusters and workflow attributes ###')
@@ -1734,7 +1947,7 @@ say('####################################################################')
 		scores <- biplots$present$scores
 		scores_teams <- scores$team
 		fields_teams <- fields$team
-		if (anonymize) fields_teams <- anonymize_teams(fields_teams, focal_species = focal_species)
+		if (anonymize) fields_teams <- anonymize_teams(fields_teams, species_focal = species_focal)
 		names(y) <- fields_teams
 		y <- y[match(scores_teams, fields_teams)]
 		scores[ , y := y]
@@ -1809,8 +2022,8 @@ say('####################################################################')
 
 	}
 
-	fields <- load_fields(focal_species)
-	biplots <- readRDS(paste0('./Analysis/', tolower(focal_species), '_pca_biplots_on_teams_with_groupings.rds'))
+	fields <- load_fields(species_focal)
+	biplots <- readRDS(paste0('./Analysis/', tolower(species_focal), '_pca_biplots_on_teams_with_groupings.rds'))
 
 	fields_present <- fields_mid <- fields_late <- fields
 
@@ -1818,7 +2031,7 @@ say('####################################################################')
 	odmap <- readRDS('./Analysis/Summary of Assessment of SDM Workflows by SDM Standards.rds')
 
 	y <- odmap$means # reverse ranks so 4 = gold, 0 = deficient
-	y <- y[grepl(y$species, pattern = focal_species)]
+	y <- y[grepl(y$species, pattern = species_focal)]
 	criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
 	odmap_scores <- y[ , ..criteria]
 	odmap_means <- rowMeans(odmap_scores)
@@ -1853,7 +2066,7 @@ say('####################################################################')
 
 	### add MINIMUM of MEAN ODMAP score to fields
 	y <- odmap$means # reverse ranks so 4 = gold, 0 = deficient
-	y <- y[grepl(y$species, pattern = focal_species)]
+	y <- y[grepl(y$species, pattern = species_focal)]
 	criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
 	odmap_scores <- y[ , ..criteria]
 	odmap_mins <- apply(odmap_scores, 1, min)
@@ -2276,7 +2489,7 @@ say('####################################################################')
 
 	### taxonomy
 
-		if (focal_species == 'Priona') {
+		if (species_focal == 'Priona') {
 
 			this_fields <- fields_present
 			title <- 'Modeled only mainland subspecies'
@@ -2297,7 +2510,7 @@ say('####################################################################')
 
 	collections <- plot_grid(plotlist = collection, ncol = 4, align = 'h')
 
-	ggsave(collections, filename = paste0('./Analysis/', focal_species, ' PCA Clusters by Workflow Attributes.png'), width = 8.5, height = 11, dpi = 600, bg = 'white')
+	ggsave(collections, filename = paste0('./Analysis/', species_focal, ' PCA Clusters by Workflow Attributes.png'), width = 8.5, height = 11, dpi = 600, bg = 'white')
 
 say('######################################')
 say('### CART analysis of team clusters ###')
@@ -2306,7 +2519,7 @@ say('######################################')
 	### COnstructs a classification and regression tree (CART) for the clusters of teams identified above for each time period, with workflow attributes used as predictors. Leave-one-out (LOO)
 
 	# modeling decisions: fields to use in analysis
-	fields <- load_fields(focal_species)
+	fields <- load_fields(species_focal)
 
 	attribs <- fields[ , 'team']
 
@@ -2630,7 +2843,7 @@ say('######################################')
 
 		# sensitive to infra-species taxonomy
 		
-			if (focal_species == 'Priona') {
+			if (species_focal == 'Priona') {
 
 				resp <- 'Modeled Only Mainland Subspecies'
 
@@ -2648,7 +2861,7 @@ say('######################################')
 			odmap <- readRDS('./Analysis/Summary of Assessment of SDM Workflows by SDM Standards.rds')
 
 			y <- odmap$means # reverse ranks so 4 = gold, 0 = deficient
-			y <- y[grepl(y$species, pattern = focal_species)]
+			y <- y[grepl(y$species, pattern = species_focal)]
 			criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
 			odmap_scores <- y[ , ..criteria]
 			odmap_means <- rowMeans(odmap_scores)
@@ -2671,7 +2884,7 @@ say('######################################')
 			resp <- 'ODMAP Minimum'
 
 			y <- odmap$means # reverse ranks so 4 = gold, 0 = deficient
-			y <- y[grepl(y$species, pattern = focal_species)]
+			y <- y[grepl(y$species, pattern = species_focal)]
 			criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
 			odmap_scores <- y[ , ..criteria]
 			odmap_mins <- apply(odmap_scores, 1, min)
@@ -2693,7 +2906,7 @@ say('######################################')
 
 			resp <- 'cluster'
 
-			y <- readRDS(paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_present.rds'))
+			y <- readRDS(paste0('./Analysis/', tolower(species_focal), '_clusters_of_teams_present.rds'))
 			attribs <- match_y(y = y, attribs = attribs, resp = resp)
 			attribs[ , cluster := factor(cluster)]
 
@@ -2703,7 +2916,7 @@ say('######################################')
 			for (period in c('mid', 'late')) {
 
 				attribs_fut <- data.table()
-				clusters <- readRDS(paste0('./Analysis/', tolower(focal_species), '_clusters_of_teams_', period, '.rds'))
+				clusters <- readRDS(paste0('./Analysis/', tolower(species_focal), '_clusters_of_teams_', period, '.rds'))
 				versions <- fread(paste0('./Analysis/team_versions_', period, '.csv'))
 
 				for (i in 1:nrow(attribs)) {
@@ -2772,7 +2985,7 @@ say('######################################')
 	### tune and run CARTs
 	######################
 
-	if (focal_species == 'Priona') {
+	if (species_focal == 'Priona') {
 
 		form_present <- cluster ~ 
 			`Prediction Type` +  
@@ -2830,7 +3043,7 @@ say('######################################')
 			`Emissions Scenario` +
 			`Number of GCMs in Climate Ensemble`
 
-	} else if (focal_species == 'Zamia') {
+	} else if (species_focal == 'Zamia') {
 
 		form_present <- cluster ~ 
 			`Prediction Type` +  
@@ -2986,7 +3199,7 @@ say('######################################')
 
 	cart_cluster_cols <- list(cluster_cols_present[1:3])
 
-	png(paste0('./Analysis/', focal_species, ' CART on Team Clusters - Present.png'), width = 1000, height = 1200, res = 600)
+	png(paste0('./Analysis/', species_focal, ' CART on Team Clusters - Present.png'), width = 1000, height = 1200, res = 600)
 
 		rpart.plot(
 			model_present,
@@ -2998,7 +3211,7 @@ say('######################################')
 
 	dev.off()
 
-	png(paste0('./Analysis/', focal_species, ' CART on Team Clusters - Mid-20th Century.png'), width = 1000, height = 1200, res = 600)
+	png(paste0('./Analysis/', species_focal, ' CART on Team Clusters - Mid-20th Century.png'), width = 1000, height = 1200, res = 600)
 
 		rpart.plot(
 			model_mid,
@@ -3010,7 +3223,7 @@ say('######################################')
 
 	dev.off()
 
-	png(paste0('./Analysis/', focal_species, ' CART on Team Clusters - Late 20th Century.png'), width = 1000, height = 1200, res = 600)
+	png(paste0('./Analysis/', species_focal, ' CART on Team Clusters - Late 20th Century.png'), width = 1000, height = 1200, res = 600)
 
 		rpart.plot(
 			model_late,

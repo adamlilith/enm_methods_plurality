@@ -332,7 +332,7 @@ say('###########################################################################
 
 		### algorithm: identity
 		
-			field_names <- c('algo_maxent', 'algo_maxnet', 'algo_brt_gbm', 'algo_glm', 'algo_gam', 'aglo_rf', 'algo_xgboost')
+			field_names <- c('algo_maxent', 'algo_maxnet', 'algo_brt_gbm', 'algo_glm', 'algo_gam', 'algo_rf', 'algo_xgboost')
 
 			for (i in seq_along(field_names)) {
 
