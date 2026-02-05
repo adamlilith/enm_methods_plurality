@@ -21,7 +21,7 @@ say('##############################################')
 say('### cluster analysis of teams: all periods ###')
 say('##############################################')
 
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 	preds <- t(preds)
 
 	pca <- prcomp(preds)

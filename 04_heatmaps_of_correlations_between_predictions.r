@@ -31,7 +31,7 @@ say('####################################################')
 
 		period <- periods[i]
 		
-		wide <- load_predictions(period = period, scale = FALSE, subset_teams = TRUE)
+		wide <- load_predictions(species_focal = species_focal, period = period, scale = FALSE, subset_teams = TRUE)
 
 		period_nice <- get_nice_period(period)
 		title <- paste0(LETTERS[i], ') ', period_nice)

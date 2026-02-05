@@ -93,8 +93,8 @@ say('############################################')
 # # # 	world <- rnaturalearth::ne_countries(scale = 'medium', returnclass = 'sv')
 # # # 	focal <- vect(paste0(out_dir, '/common_study_region.gpkg'))
 
-# # # 	preds_ll <- load_predictions(period = 'present', scale = TRUE, subset_teams = FALSE)
-# # # 	preds <- load_predictions(period = 'present', scale = TRUE, subset_teams = TRUE)
+# # # 	preds_ll <- load_predictions(species_focal = species_focal, period = 'present', scale = TRUE, subset_teams = FALSE)
+# # # 	preds <- load_predictions(species_focal = species_focal, period = 'present', scale = TRUE, subset_teams = TRUE)
 
 # # # 	# calculate summary statistics across predictions
 # # # 	inter_quart_range_fx <- function(x) quantile(x, 0.75) - quantile(x, 0.25)

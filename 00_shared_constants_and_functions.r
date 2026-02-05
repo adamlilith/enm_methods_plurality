@@ -58,7 +58,7 @@
 	species_focal <- 'Zamia'
 
 	# spreadsheet that scores attributes for each workflow
-	fields_file_name <- './Data/Model_choices_2025_12_30.xlsx'
+	fields_file_name <- './Data/Model_choices_2026_01_25.xlsx'
 
 	# number of random points to keep that have predictions across all teams' rasters
 	n_rand_points_to_keep <- 100000
@@ -159,15 +159,21 @@
 	}
 
 	### load predictions at sites shared by all rasters
+	# species_focal 'Priona' or 'Zamia'
 	# period		'all' (all periods), 'present', 'mid', or 'late'
 	# scaled		TRUE ==> scale predictions to [0, 1], FALSE ==> return raw scores
 	# subset_teams  TRUE ==> return data frame with just columns with predictions, FALSE ==> return all columns in extraction frame (e.g., coordinates)
 	# discardNAs	TRUE ==> remove rows in which there is at least one NA
-	load_predictions <- function(period = 'all', scale = TRUE, subset_teams = TRUE) {
+	load_predictions <- function(species_focal, period = 'all', scale = TRUE, subset_teams = TRUE) {
 
-		out <- readRDS(paste0('./Outputs ', species_full, '/Extractions to Random Sites.rds'))
+		species_full <- if (species_focal == 'Priona') {
+			'Prionailurus bengalensis'
+		} else {
+			'Zamia prasina'
+		}
+
+		out <- readRDS(paste0('./Outputs ', species_full, '/Extractions to Random Sites ', species_focal, '.rds'))
 		if (subset_teams) out[ , c('longitude', 'latitude') := NULL]
-		# if (discardNAs) out <- out[complete.cases(out)]
 		if (period != 'all') {
 			col_indices <- which(grepl(names(out), pattern = paste0('_', period)))
 			if (!subset_teams) col_indices <- c(1:2, col_indices) # 1 and 2 are longitude & latitude
@@ -178,7 +184,7 @@
 			
 			fields <- load_rast_fields(species_focal)
 
-			min_max <- readRDS(paste0('./Outputs ', species_full, '/Extractions to Random Sites Minium & Maximum Values across Rasters.rds'))
+			min_max <- readRDS(paste0('./Outputs ', species_full, '/Extractions to Random Sites - Minimum & Maximum Values across Rasters - ', species_focal, '.rds'))
 			min_max$base_raster <- substr(min_max$raster, 1, 1)
 			team_info <- fread('./Outputs Shared Anonymized/team_info_anonymized.csv')
 			codes <- team_info$code

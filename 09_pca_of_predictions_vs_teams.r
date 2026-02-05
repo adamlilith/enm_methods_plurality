@@ -23,7 +23,7 @@
 	### PCA-based distances between team predictions
 	################################################
 
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 
 	removes <- c('N3a', 'N3b', 'N4a', 'N4b')
 	removes <- paste0(removes, rep(c('_mid', '_late'), each = 4))

@@ -8,7 +8,7 @@
 ###
 ### CONTENTS ###
 ### setup ###
-### test for associations between team clusters and workflow attributes ###
+### test for associations between unsupervised clusters of rasters and workflow attributes ###
 ### reshape results associating workflow attributes with clusters into table for display ###
 ### univariate Mantel and PERMANOVA tests between distances between rasters in PCA space and individual workflow attributes ###
 ### make PCA biplots with rasters coded by workflow attribute (no clusters) ###
@@ -380,888 +380,893 @@
 
 	}
 
-say('###########################################################################')
-say('### test for associations between team clusters and workflow attributes ###')
-say('###########################################################################')
+# say('##############################################################################################')
+# say('### test for associations between unsupervised clusters of rasters and workflow attributes ###')
+# say('##############################################################################################')
 
-	### MAIN
-	########
+# 	### MAIN
+# 	########
 
-	rast_fields <- load_rast_fields(species_focal = species_focal)
-	team_fields <- load_team_fields(species_focal = species_focal)
+# 	rast_fields <- load_rast_fields(species_focal = species_focal)
+# 	team_fields <- load_team_fields(species_focal = species_focal)
 
-	### cluster
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
-	preds_trans <- t(preds)
+# 	### cluster
+# 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
+# 	preds_trans <- t(preds)
 
-	pca <- prcomp(preds_trans)
-	scores <- pca$x[ , 1:2]
-	scores <- as.data.frame(scores)
+# 	pca <- prcomp(preds_trans)
+# 	scores <- pca$x[ , 1:2]
+# 	scores <- as.data.frame(scores)
 
-	dists <- dist(scores)
-	clust <- hclust(dists, method = 'complete')
+# 	dists <- dist(scores)
+# 	clust <- hclust(dists, method = 'complete')
 
-	### PCA biplots with polygons for each size of cluster
-	biplots <- readRDS(paste0(out_dir, '/Cluster Analysis of Rasters/Biplot and Dendrogram of All Rasters Hierarchical Complete Polygon Plots.rds'))
+# 	### PCA biplots with polygons for each size of cluster
+# 	biplots <- readRDS(paste0(out_dir, '/Cluster Analysis of Rasters/Biplot and Dendrogram of All Rasters Hierarchical Complete Polygon Plots.rds'))
 
-	### analyze associations between workflow attributes and clusters created by predictions
-	########################################################################################
-	results <- data.table()
+# 	### analyze associations between workflow attributes and clusters created by predictions
+# 	########################################################################################
+# 	results <- data.table()
 
-	for (k in get_ks()) {
-	# for (k in c(2, 5, 12)) {
+# 	for (k in get_ks()) {
+# 	# for (k in c(2, 5, 12)) {
 
-		say('k ', k)
+# 		say('k ', k)
 
-		panels <- list() # list of biplots (ggplot2 objects) with one panel for each attribute
-		biplot <- biplots[[paste0('k', k)]]
-		clusters <- cutree(clust, k = k)
+# 		panels <- list() # list of biplots (ggplot2 objects) with one panel for each attribute
+# 		biplot <- biplots[[paste0('k', k)]]
+# 		clusters <- cutree(clust, k = k)
 
-		# ### indices matching TEAM fields to cluster
-		# cluster_rast_names <- names(clusters)
-		# cluster_team_names <- substr(cluster_rast_names, 1, 1)
-		# matches_team <- match(cluster_team_names, team_fields$team_code)
+# 		# ### indices matching TEAM fields to cluster
+# 		# cluster_rast_names <- names(clusters)
+# 		# cluster_team_names <- substr(cluster_rast_names, 1, 1)
+# 		# matches_team <- match(cluster_team_names, team_fields$team_code)
 
-		# ### indices matching RASTER fields to cluster
-		# cluster_rast_names <- names(clusters)
-		# field_rast_names <- paste0(rast_fields$raster_name, '_', rast_fields$time_period)
-		# matches_rast <- match(cluster_rast_names, field_rast_names)
+# 		# ### indices matching RASTER fields to cluster
+# 		# cluster_rast_names <- names(clusters)
+# 		# field_rast_names <- paste0(rast_fields$raster_name, '_', rast_fields$time_period)
+# 		# matches_rast <- match(cluster_rast_names, field_rast_names)
 
-		### add MEAN ODMAP score and MINIMUM SCORE ACROSS CATEGORIES to fields
-		######################################################################
+# 		### add MEAN ODMAP score and MINIMUM SCORE ACROSS CATEGORIES to fields
+# 		######################################################################
 
-		odmap <- readRDS('./Outputs Shared Anonymized/ODMAP Scoring Anonymized.rds')
+# 		odmap <- readRDS('./Outputs Shared Anonymized/ODMAP Scoring Anonymized.rds')
 
-		y <- odmap[['means']]
+# 		y <- odmap[['means']]
 
-		y <- y[grepl(y$species, pattern = species_full)]
-		criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
-		odmap_scores <- y[ , ..criteria]
+# 		y <- y[grepl(y$species, pattern = species_full)]
+# 		criteria <- c(paste0(1, LETTERS[1:5]), paste0(2, LETTERS[1:3]), paste0(3, LETTERS[1:4]), paste0(4, LETTERS[1:3]))
+# 		odmap_scores <- y[ , ..criteria]
 		
-		odmap_means <- rowMeans(odmap_scores)
-		odmap_mins <- apply(odmap_scores, 1, max) # taking max bc 1 = gold, 0 = deficient
+# 		odmap_means <- rowMeans(odmap_scores)
+# 		odmap_mins <- apply(odmap_scores, 1, max) # taking max bc 1 = gold, 0 = deficient
 
-		odmap_means <- 4 - odmap_means # reverse ranks so 4 = gold, 0 = deficient
-		odmap_mins <- 4 - odmap_mins # reverse ranks so 4 = gold, 0 = deficient
+# 		odmap_means <- 4 - odmap_means # reverse ranks so 4 = gold, 0 = deficient
+# 		odmap_mins <- 4 - odmap_mins # reverse ranks so 4 = gold, 0 = deficient
 
-		team_codes <- odmap$means$team_code[odmap$means$species == species_full]
-		names(odmap_means) <- team_codes
-		names(odmap_mins) <- team_codes
+# 		team_codes <- odmap$means$team_code[odmap$means$species == species_full]
+# 		names(odmap_means) <- team_codes
+# 		names(odmap_mins) <- team_codes
 
-		team_fields$odmap_mean <- odmap_means[match(team_fields$team_code, team_codes)]
-		team_fields$odmap_min <- odmap_mins[match(team_fields$team_code, team_codes)]
+# 		team_fields$odmap_mean <- odmap_means[match(team_fields$team_code, team_codes)]
+# 		team_fields$odmap_min <- odmap_mins[match(team_fields$team_code, team_codes)]
 
-		### evaluate individual workflow attributes
-		###########################################
+# 		### evaluate individual workflow attributes
+# 		###########################################
 
-		### "team"
+# 		### "team"
 
-			step <- '0 Quality/Team'
-			nice <- 'Team'
-			match_on <- 'team'
+# 			step <- '0 Quality/Team'
+# 			nice <- 'Team'
+# 			match_on <- 'team'
 
-			y <- team_fields$team_code
+# 			y <- team_fields$team_code
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Team'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Team'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, show_legend = FALSE)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, show_legend = FALSE)
 
-		### "team x thresholding"
+# 		### "team x thresholding"
 
-			step <- '0 Quality/Team'
-			nice <- 'Team × Continuous/Thresholding'
-			match_on <- 'raster'
+# 			step <- '0 Quality/Team'
+# 			nice <- 'Team × Continuous/Thresholding'
+# 			match_on <- 'raster'
 
-			y <- rast_fields$team_code
-			y[rast_fields$raster_name == 'M1'] <- 'Mc'
-			y[rast_fields$raster_name == 'M2'] <- 'Mt'
-			y[rast_fields$raster_name == 'N'] <- 'Nc'
-			y[rast_fields$raster_name %in% c('N3', 'N4', 'N3a', 'N4a', 'N3b', 'N4b')] <- 'Nt'
+# 			y <- rast_fields$team_code
+# 			y[rast_fields$raster_name == 'M1'] <- 'Mc'
+# 			y[rast_fields$raster_name == 'M2'] <- 'Mt'
+# 			if (species_focal == 'Priona') {
+# 				y[rast_fields$raster_name %in% c('N1', 'N2')] <- 'Nc'
+# 				y[rast_fields$raster_name %in% c('N3', 'N4', 'N3a', 'N4a', 'N3b', 'N4b')] <- 'Nt'
+# 			} else if (species_focal == 'Zamia') {
+# 				y[rast_fields$raster_name %in% c('N1', 'N2', 'N3', 'N1a', 'N2a', 'N3a', 'N1b', 'N2b', 'N3b')] <- 'Nc'
+# 				y[rast_fields$raster_name %in% c('N4', 'N5', 'N6', 'N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b')] <- 'Nt'
+# 			}
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Team × Continuous/Thresholding'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Team × Continuous/Thresholding'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, show_legend = FALSE)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, show_legend = FALSE)
 
-		### ODMAP *mean* score
+# 		### ODMAP *mean* score
 
-			step <- '0 Quality/Team'
-			nice <- 'SDM standards: Mean rank'
-			match_on <- 'team'
+# 			step <- '0 Quality/Team'
+# 			nice <- 'SDM standards: Mean rank'
+# 			match_on <- 'team'
 
-			y <- as.numeric(team_fields$odmap_mean)
+# 			y <- as.numeric(team_fields$odmap_mean)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Rank\n(numeric)'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Rank\n(numeric)'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		# ### ODMAP *minimum* of mean score
-		# # Not doing this one bc only one team had >0 minimum score
+# 		# ### ODMAP *minimum* of mean score
+# 		# # Not doing this one bc only one team had >0 minimum score
 
-		# 	step <- '0 Quality/Team'
-		# 	nice <- 'SDM standards: Minimum rank'
-		# 	match_on <- 'team'
+# 		# 	step <- '0 Quality/Team'
+# 		# 	nice <- 'SDM standards: Minimum rank'
+# 		# 	match_on <- 'team'
 
-		# 	y <- as.numeric(team_fields$odmap_min)
+# 		# 	y <- as.numeric(team_fields$odmap_min)
 			
-		# 	results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 		# 	results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-		# 	# plot
-		# 	y_type <- 'numeric'
-		# 	legend <- 'Rank\n(numeric)'
-		# 	trans <- NA
+# 		# 	# plot
+# 		# 	y_type <- 'numeric'
+# 		# 	legend <- 'Rank\n(numeric)'
+# 		# 	trans <- NA
 
-		# 	panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 		# 	panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### number of occurrences
+# 		### number of occurrences
 
-			step <- '1 Data'
-			nice <- 'Occurrences: Number of occurrences'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Occurrences: Number of occurrences'
+# 			match_on <- 'team'
 
-			y <- team_fields$num_occurrences_minimum
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			y <- team_fields$num_occurrences_minimum
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 			
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Number'
-			trans <- 'log10'
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Number'
+# 			trans <- 'log10'
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### climate predictors: number
+# 		### climate predictors: number
 
-			step <- '1 Data'
-			nice <- 'Predictors: Total number of climate predictors'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Predictors: Total number of climate predictors'
+# 			match_on <- 'team'
 
-			y <- team_fields$predictors_climate_num_total
-			y <- as.numeric(y)
+# 			y <- team_fields$predictors_climate_num_total
+# 			y <- as.numeric(y)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Number'
-			trans <- 'log10'
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Number'
+# 			trans <- 'log10'
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### non-climate: ANY non-climate predictors
+# 		### non-climate: ANY non-climate predictors
 
-			step <- '1 Data'
-			nice <- 'Predictors: Non-climate predictors'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Predictors: Non-climate predictors'
+# 			match_on <- 'team'
 
-			y <- team_fields$predictors_nonclimate_num > 0
-			y <- as.numeric(y)
-			y[y == 1] <- 'Yes'
-			y[y == 0] <- 'No'
+# 			y <- team_fields$predictors_nonclimate_num > 0
+# 			y <- as.numeric(y)
+# 			y[y == 1] <- 'Yes'
+# 			y[y == 0] <- 'No'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Any non-climate\npredictor(s)'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Any non-climate\npredictor(s)'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### non-climate: number of predictors
+# 		### non-climate: number of predictors
 
-			step <- '1 Data'
-			nice <- 'Predictors: Number of non-climate predictors'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Predictors: Number of non-climate predictors'
+# 			match_on <- 'team'
 
-			y <- team_fields$predictors_nonclimate_num
-			y <- as.numeric(y)
+# 			y <- team_fields$predictors_nonclimate_num
+# 			y <- as.numeric(y)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-		### source of climate predictors
+# 		### source of climate predictors
 
-			step <- '1 Data'
-			nice <- 'Predictors: Climate data source'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Predictors: Climate data source'
+# 			match_on <- 'team'
 
-			y <- team_fields$predictors_climate_source
+# 			y <- team_fields$predictors_climate_source
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Source'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Source'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### number of predictors
+# 		### number of predictors
 
-			step <- '1 Data'
-			nice <- 'Predictors: Total number'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Predictors: Total number'
+# 			match_on <- 'team'
 
-			y <- team_fields$predictors_climate_nonclimate_num_total
-			y <- as.numeric(y)
+# 			y <- team_fields$predictors_climate_nonclimate_num_total
+# 			y <- as.numeric(y)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Number'
-			trans <- 'log2'
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Number'
+# 			trans <- 'log2'
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### spatial resolution: cell size *qualitative*
+# 		### spatial resolution: cell size *qualitative*
 			
-			step <- '1 Data'
-			nice <- 'Spatial resolution (arcmin)'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Spatial resolution (arcmin)'
+# 			match_on <- 'team'
 
-			y <- team_fields$res_arcmin
+# 			y <- team_fields$res_arcmin
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-		### spatial resolution: cell size
+# 		### spatial resolution: cell size
 			
-			step <- '1 Data'
-			nice <- 'Spatial resolution (km2)'
-			match_on <- 'team'
+# 			step <- '1 Data'
+# 			nice <- 'Spatial resolution (km2)'
+# 			match_on <- 'team'
 
-			y <- as.numeric(team_fields$res_km2)
+# 			y <- as.numeric(team_fields$res_km2)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Area (km2)'
-			trans <- 'log2'
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Area (km2)'
+# 			trans <- 'log2'
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### collinearity: managed at all
+# 		### collinearity: managed at all
 
-			step <- '2 Model setup'
-			nice <- 'Collinearity: Explicitly managed'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Collinearity: Explicitly managed'
+# 			match_on <- 'team'
 
-			field_names <- c('collinearity_pca', 'collinearity_correlation', 'collinearity_vif', 'collinearity_other_method')
-			y <- team_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
+# 			field_names <- c('collinearity_pca', 'collinearity_correlation', 'collinearity_vif', 'collinearity_other_method')
+# 			y <- team_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
 
-			y <- rowSums(y)
-			y <- as.numeric(y > 0)
-			y[y == 1] <- 'Managed'
-			y[y == '0'] <- 'Not managed'
+# 			y <- rowSums(y)
+# 			y <- as.numeric(y > 0)
+# 			y[y == 1] <- 'Managed'
+# 			y[y == '0'] <- 'Not managed'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Collinearity'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Collinearity'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### collinearity: method
+# 		### collinearity: method
 
-			step <- '2 Model setup'
-			nice <- 'Collinearity: Method of management'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Collinearity: Method of management'
+# 			match_on <- 'team'
 
-			field_names <- c('collinearity_pca', 'collinearity_correlation', 'collinearity_vif', 'collinearity_other_method')
-			y <- team_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			field_names <- c('collinearity_pca', 'collinearity_correlation', 'collinearity_vif', 'collinearity_other_method')
+# 			y <- team_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			y <- sub(y, pattern = 'collinearity_pca', replacement = 'PCA')
-			y <- sub(y, pattern = 'collinearity_correlation', replacement = 'Corr.')
-			y <- sub(y, pattern = 'collinearity_vif', replacement = 'VIF')
-			y <- sub(y, pattern = 'collinearity_other_method', replacement = 'Other')
+# 			y <- sub(y, pattern = 'collinearity_pca', replacement = 'PCA')
+# 			y <- sub(y, pattern = 'collinearity_correlation', replacement = 'Corr.')
+# 			y <- sub(y, pattern = 'collinearity_vif', replacement = 'VIF')
+# 			y <- sub(y, pattern = 'collinearity_other_method', replacement = 'Other')
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Method'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Method'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### modeling_software
+# 		### modeling_software
 
-			step <- '3 Modeling software'
-			nice <- 'Modeling software'
+# 			step <- '3 Modeling software'
+# 			nice <- 'Modeling software'
 
-			field_names <- c('modeling_software_enmeval', 'modeling_software_enmtools', 'modeling_software_wallace', 'modeling_software_biomod2', 'modeling_software_sabinansdm', 'modeling_software_sdm', 'modeling_software_miamaxent', 'modeling_software_enmsdmx', 'modeling_software_flexsdm', 'modeling_software_sdmtune', 'modeling_software_piecemeal', 'modeling_software_other')
+# 			field_names <- c('modeling_software_enmeval', 'modeling_software_enmtools', 'modeling_software_wallace', 'modeling_software_biomod2', 'modeling_software_sabinansdm', 'modeling_software_sdm', 'modeling_software_miamaxent', 'modeling_software_enmsdmx', 'modeling_software_flexsdm', 'modeling_software_sdmtune', 'modeling_software_piecemeal', 'modeling_software_other')
 
-			match_on <- 'team'
+# 			match_on <- 'team'
 
-			y <- team_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- team_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'modeling_software_enmeval', replacement = 'ENMeval')
-			y <- sub(y, pattern = 'modeling_software_enmtools', replacement = 'ENMTools')
-			y <- sub(y, pattern = 'modeling_software_wallace', replacement = 'Wallace')
-			y <- sub(y, pattern = 'modeling_software_biomod2', replacement = 'BIOMOD2')
-			y <- sub(y, pattern = 'modeling_software_sabinansdm', replacement = 'sabinaNSDM')
-			y <- sub(y, pattern = 'modeling_software_sdm', replacement = 'sdm')
-			y <- sub(y, pattern = 'modeling_software_miamaxent', replacement = 'MIAmaxent')
-			y <- sub(y, pattern = 'modeling_software_enmsdmx', replacement = 'enmSdmX')
-			y <- sub(y, pattern = 'modeling_software_flexsdm', replacement = 'flexsdm')
-			y <- sub(y, pattern = 'modeling_software_sdmtune', replacement = 'SDMtune')
-			y <- sub(y, pattern = 'modeling_software_other', replacement = 'other')
-			y <- sub(y, pattern = 'modeling_software_piecemeal', replacement = 'piecemeal')
+# 			y <- sub(y, pattern = 'modeling_software_enmeval', replacement = 'ENMeval')
+# 			y <- sub(y, pattern = 'modeling_software_enmtools', replacement = 'ENMTools')
+# 			y <- sub(y, pattern = 'modeling_software_wallace', replacement = 'Wallace')
+# 			y <- sub(y, pattern = 'modeling_software_biomod2', replacement = 'BIOMOD2')
+# 			y <- sub(y, pattern = 'modeling_software_sabinansdm', replacement = 'sabinaNSDM')
+# 			y <- sub(y, pattern = 'modeling_software_sdm', replacement = 'sdm')
+# 			y <- sub(y, pattern = 'modeling_software_miamaxent', replacement = 'MIAmaxent')
+# 			y <- sub(y, pattern = 'modeling_software_enmsdmx', replacement = 'enmSdmX')
+# 			y <- sub(y, pattern = 'modeling_software_flexsdm', replacement = 'flexsdm')
+# 			y <- sub(y, pattern = 'modeling_software_sdmtune', replacement = 'SDMtune')
+# 			y <- sub(y, pattern = 'modeling_software_other', replacement = 'other')
+# 			y <- sub(y, pattern = 'modeling_software_piecemeal', replacement = 'piecemeal')
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Software'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Software'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### software_used_by_team_developing_it
+# 		### software_used_by_team_developing_it
 
-			step <- '3 Software: Developers of the software'
-			nice <- 'Software use by developers'
-			trans <- NA
+# 			step <- '3 Software: Developers of the software'
+# 			nice <- 'Software use by developers'
+# 			trans <- NA
 
-			y <- rast_fields$team_code
-			y[y %in% c('E', 'B', 'C', 'H', 'D')] <- 'Yes'
-			y[y != 'Yes'] <- 'No'
+# 			y <- rast_fields$team_code
+# 			y[y %in% c('E', 'B', 'C', 'H', 'D')] <- 'Yes'
+# 			y[y != 'Yes'] <- 'No'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Developer'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Developer'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### modeling_software: ENVeval / Wallace
+# 		### modeling_software: ENVeval / Wallace
 
-			step <- '3 Model algorithm'
-			nice <- 'Software: Used ENMeval/Wallace'
-			match_on <- 'team'
+# 			step <- '3 Model algorithm'
+# 			nice <- 'Software: Used ENMeval/Wallace'
+# 			match_on <- 'team'
 
-			set_names <- c('modeling_software_enmeval', 'modeling_software_wallace')
-			y <- team_fields [ , ..set_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- as.numeric(y > 0)
-			y[y == 1] <- 'ENMeval/Wallace'
-			y[y == '0'] <- 'Other'
+# 			set_names <- c('modeling_software_enmeval', 'modeling_software_wallace')
+# 			y <- team_fields [ , ..set_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- as.numeric(y > 0)
+# 			y[y == 1] <- 'ENMeval/Wallace'
+# 			y[y == '0'] <- 'Other'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Software'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Software'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### algorithm: used ensemble
+# 		### algorithm: used ensemble
 		
-			step <- '3 Model algorithm'
-			nice <- 'Algorithm: Used ensemble'
-			match_on <- 'team'
+# 			step <- '3 Model algorithm'
+# 			nice <- 'Algorithm: Used ensemble'
+# 			match_on <- 'team'
 
-			y <- rast_fields$algo_ensemble
-			y <- as.numeric(y)
-			y[y == 1] <- 'Yes'
-			y[y == '0'] <- 'No'
+# 			y <- rast_fields$algo_ensemble
+# 			y <- as.numeric(y)
+# 			y[y == 1] <- 'Yes'
+# 			y[y == '0'] <- 'No'
 
-			test <- 'contingency_test'
+# 			test <- 'contingency_test'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Ensemble'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Ensemble'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### algorithm: number of algorithms used in ensemble (including 0)
+# 		### algorithm: number of algorithms used in ensemble (including 0)
 			
-			step <- '3 Model algorithm'
-			nice <- 'Algorithm: Number of algorithms in ensemble'
-			match_on <- 'raster'
+# 			step <- '3 Model algorithm'
+# 			nice <- 'Algorithm: Number of algorithms in ensemble'
+# 			match_on <- 'raster'
 
-			y <- rast_fields$algo_ensemble_number_of_models
-			y <- as.numeric(y)
+# 			y <- rast_fields$algo_ensemble_number_of_models
+# 			y <- as.numeric(y)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Algorithms'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Algorithms'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### algorithm: identity
+# 		### algorithm: identity
 
-			step <- '3 Model algorithm'
-			nice <- 'Algorithm'
-			match_on <- 'raster'
+# 			step <- '3 Model algorithm'
+# 			nice <- 'Algorithm'
+# 			match_on <- 'raster'
 
-			field_names <- c('algo_ensemble', 'algo_maxent', 'algo_maxnet', 'algo_glm', 'algo_gam', 'algo_rf', 'algo_sre')
+# 			field_names <- c('algo_ensemble', 'algo_maxent', 'algo_maxnet', 'algo_glm', 'algo_gam', 'algo_rf', 'algo_sre')
 
-			y <- rast_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- rast_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y[y == 'algo_ensemble'] <- 'Ensemble'
-			y[y == 'algo_maxent'] <- 'MaxEnt'
-			y[y == 'algo_maxnet'] <- 'MaxNet'
-			y[y == 'algo_glm'] <- 'GLM'
-			y[y == 'algo_gam'] <- 'GAM'
-			y[y == 'algo_rf'] <- 'RF'
-			y[y == 'algo_sre'] <- 'SRE'
+# 			y[y == 'algo_ensemble'] <- 'Ensemble'
+# 			y[y == 'algo_maxent'] <- 'MaxEnt'
+# 			y[y == 'algo_maxnet'] <- 'MaxNet'
+# 			y[y == 'algo_glm'] <- 'GLM'
+# 			y[y == 'algo_gam'] <- 'GAM'
+# 			y[y == 'algo_rf'] <- 'RF'
+# 			y[y == 'algo_sre'] <- 'SRE'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Algorithm'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Algorithm'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### algorithm: MaxEnt / MaxNet
+# 		### algorithm: MaxEnt / MaxNet
 
-			step <- '3 Model algorithm'
-			nice <- 'Algorithm: Used MaxEnt/MaxNet'
-			matchOn <- 'raster'
+# 			step <- '3 Model algorithm'
+# 			nice <- 'Algorithm: Used MaxEnt/MaxNet'
+# 			matchOn <- 'raster'
 
-			set_names <- c('algo_maxent', 'algo_maxnet')
-			y <- rast_fields[ , ..set_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- rowSums(y)
-			y[y == 1] <- 'MaxEnt/Net'
-			y[y == '0'] <- 'Other'
+# 			set_names <- c('algo_maxent', 'algo_maxnet')
+# 			y <- rast_fields[ , ..set_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- rowSums(y)
+# 			y[y == 1] <- 'MaxEnt/Net'
+# 			y[y == '0'] <- 'Other'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'MaxEnt/Net'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'MaxEnt/Net'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### bias correction: did any
+# 		### bias correction: did any
 			
-			step <- '2 Model setup'
-			nice <- 'Bias correction: Implemented'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Bias correction: Implemented'
+# 			match_on <- 'team'
 
-			field_names <- c('bias_correction_spatial_thinning', 'bias_correction_environmental_thinning', 'bias_correction_target_background', 'bias_correction_nonrandom_background')
+# 			field_names <- c('bias_correction_spatial_thinning', 'bias_correction_environmental_thinning', 'bias_correction_target_background', 'bias_correction_nonrandom_background')
 			
-			y_star <- team_fields[ , ..field_names]
-			y_star <- y_star[ , lapply(.SD, as.numeric)]
-			y_star <- rowSums(y_star)
-			y_star <- y_star > 0
-			y <- rep(NA, nrow(rast_fields))
-			y[y_star] <- 'Yes'
-			y[!y_star] <- 'No'
+# 			y_star <- team_fields[ , ..field_names]
+# 			y_star <- y_star[ , lapply(.SD, as.numeric)]
+# 			y_star <- rowSums(y_star)
+# 			y_star <- y_star > 0
+# 			y <- rep(NA, nrow(rast_fields))
+# 			y[y_star] <- 'Yes'
+# 			y[!y_star] <- 'No'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Bias\ncorrection'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Bias\ncorrection'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### bias correction: method
+# 		### bias correction: method
 
-			step <- '2 Model setup'
-			nice <- 'Bias correction: Method'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Bias correction: Method'
+# 			match_on <- 'team'
 
-			field_names <- c('bias_correction_spatial_thinning', 'bias_correction_environmental_thinning', 'bias_correction_target_background', 'bias_correction_nonrandom_background', 'bias_correction_none')
+# 			field_names <- c('bias_correction_spatial_thinning', 'bias_correction_environmental_thinning', 'bias_correction_target_background', 'bias_correction_nonrandom_background', 'bias_correction_none')
 
-			y <- team_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- team_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'bias_correction_spatial_thinning', replacement = 'Spatial')
-			y <- sub(y, pattern = 'bias_correction_environmental_thinning', replacement = 'Env. thin')
-			y <- sub(y, pattern = 'bias_correction_target_background', replacement = 'Target')
-			y <- sub(y, pattern = 'bias_correction_nonrandom_background', replacement = 'NR BG')
-			y <- sub(y, pattern = 'bias_correction_none', replacement = 'None')
-			y[is.na(y)] <- 'Unknown'
+# 			y <- sub(y, pattern = 'bias_correction_spatial_thinning', replacement = 'Spatial')
+# 			y <- sub(y, pattern = 'bias_correction_environmental_thinning', replacement = 'Env. thin')
+# 			y <- sub(y, pattern = 'bias_correction_target_background', replacement = 'Target')
+# 			y <- sub(y, pattern = 'bias_correction_nonrandom_background', replacement = 'NR BG')
+# 			y <- sub(y, pattern = 'bias_correction_none', replacement = 'None')
+# 			y[is.na(y)] <- 'Unknown'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Method'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Method'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### non-presence type
+# 		### non-presence type
 
-			step <- '2 Model setup'
-			nice <- 'Non-presence type'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Non-presence type'
+# 			match_on <- 'team'
 
-			# non-presences: type
-			field_names <- c('nonpres_type_background', 'nonpres_type_pseudoabsence', 'nonpres_type_target_background')
+# 			# non-presences: type
+# 			field_names <- c('nonpres_type_background', 'nonpres_type_pseudoabsence', 'nonpres_type_target_background')
 
-			y <- team_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- team_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'nonpres_type_background', replacement = 'Random')
-			y <- sub(y, pattern = 'nonpres_type_pseudoabsence', replacement = 'PSA')
-			y <- sub(y, pattern = 'nonpres_type_target_background', replacement = 'Target')
+# 			y <- sub(y, pattern = 'nonpres_type_background', replacement = 'Random')
+# 			y <- sub(y, pattern = 'nonpres_type_pseudoabsence', replacement = 'PSA')
+# 			y <- sub(y, pattern = 'nonpres_type_target_background', replacement = 'Target')
 		
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Type'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Type'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### calibration region boundary
+# 		### calibration region boundary
 		
-			step <- '2 Model setup'
-			nice <- 'Calibration region: Boundary definition'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Calibration region: Boundary definition'
+# 			match_on <- 'team'
 
-			# non-presences: type
-			field_names <- c('boundary_rectangle', 'boundary_natural', 'boundary_convex_hull', 'boundary_range_map', 'boundary_political', 'boundary_buffer_around_occurrences')
+# 			# non-presences: type
+# 			field_names <- c('boundary_rectangle', 'boundary_natural', 'boundary_convex_hull', 'boundary_range_map', 'boundary_political', 'boundary_buffer_around_occurrences')
 
-			y <- team_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- team_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'boundary_rectangle', replacement = 'Rect.')
-			y <- sub(y, pattern = 'boundary_natural', replacement = 'Natural')
-			y <- sub(y, pattern = 'boundary_convex_hull', replacement = 'Hull')
-			y <- sub(y, pattern = 'boundary_range_map', replacement = 'Range')
-			y <- sub(y, pattern = 'boundary_political', replacement = 'Polit.')
-			y <- sub(y, pattern = 'boundary_buffer_around_occurrences', replacement = 'Buffer')
+# 			y <- sub(y, pattern = 'boundary_rectangle', replacement = 'Rect.')
+# 			y <- sub(y, pattern = 'boundary_natural', replacement = 'Natural')
+# 			y <- sub(y, pattern = 'boundary_convex_hull', replacement = 'Hull')
+# 			y <- sub(y, pattern = 'boundary_range_map', replacement = 'Range')
+# 			y <- sub(y, pattern = 'boundary_political', replacement = 'Polit.')
+# 			y <- sub(y, pattern = 'boundary_buffer_around_occurrences', replacement = 'Buffer')
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Type'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Type'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### calibration region extent
+# 		### calibration region extent
 			
-			step <- '2 Model setup'
-			nice <- 'Calibration region: Area'
-			match_on <- 'team'
+# 			step <- '2 Model setup'
+# 			nice <- 'Calibration region: Area'
+# 			match_on <- 'team'
 
-			y <- as.numeric(team_fields$extent_calibration_sans_water_km2)
+# 			y <- as.numeric(team_fields$extent_calibration_sans_water_km2)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 		
-			# plot
-			y_type <- 'numeric'
-			legend <- 'Area (km2)'
-			trans <- 'log2'
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'Area (km2)'
+# 			trans <- 'log2'
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### AUC
+# 		### AUC
 			
-			step <- '4 Model evaluation'
-			nice <- 'Evaluation: Value of AUC'
-			match_on <- 'raster'
+# 			step <- '4 Model evaluation'
+# 			nice <- 'Evaluation: Value of AUC'
+# 			match_on <- 'raster'
 
-			y <- rast_fields$eval_metric_auc_roc_value
-			y <- as.numeric(y)
+# 			y <- rast_fields$eval_metric_auc_roc_value
+# 			y <- as.numeric(y)
 
-			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- kw_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'numeric'
-			legend <- 'AUC'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'numeric'
+# 			legend <- 'AUC'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### thresholded predictions
+# 		### thresholded predictions
 
-			step <- '5 Prediction/projection'
-			nice <- 'Predictions: Continuous/thresholded'
-			match_on <- 'raster'
+# 			step <- '5 Prediction/projection'
+# 			nice <- 'Predictions: Continuous/thresholded'
+# 			match_on <- 'raster'
 
-			field_names <- c('prediction_type_continuous', 'prediction_type_binary_threshold', 'prediction_type_multi_threshold')
+# 			field_names <- c('prediction_type_continuous', 'prediction_type_binary_threshold', 'prediction_type_multi_threshold')
 
-			y <- rast_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- rast_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'prediction_type_continuous', replacement = 'Continuous')
-			y <- sub(y, pattern = 'prediction_type_binary_threshold', replacement = 'Binary Thresh.')
-			y <- sub(y, pattern = 'prediction_type_multi_threshold', replacement = 'Multiple Thresh.')
+# 			y <- sub(y, pattern = 'prediction_type_continuous', replacement = 'Continuous')
+# 			y <- sub(y, pattern = 'prediction_type_binary_threshold', replacement = 'Binary Thresh.')
+# 			y <- sub(y, pattern = 'prediction_type_multi_threshold', replacement = 'Multiple Thresh.')
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Type'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Type'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### time period
+# 		### time period
 
-			step <- '5 Prediction/projection'
-			nice <- 'Projection: Time period'
-			match_on <- 'raster'
+# 			step <- '5 Prediction/projection'
+# 			nice <- 'Projection: Time period'
+# 			match_on <- 'raster'
 
-			y <- rast_fields$time_period
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 			y <- rast_fields$time_period
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 
-			y_type <- 'factor'
-			legend <- 'Period'
-			trans <- NA
+# 			y_type <- 'factor'
+# 			legend <- 'Period'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### late-century time period
-		# present and mid-century time period are redundant with climate data source, so not doing them
+# 		### late-century time period
+# 		# present and mid-century time period are redundant with climate data source, so not doing them
 
-			step <- '5 Prediction/projection'
-			nice <- 'Projection: Late 20th-century time period'
-			match_on <- 'team'
-			time_period <- 'late'
+# 			step <- '5 Prediction/projection'
+# 			nice <- 'Projection: Late 20th-century time period'
+# 			match_on <- 'team'
+# 			time_period <- 'late'
 
-			y <- team_fields$future_scenario_latecentury_year
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = 'late')
+# 			y <- team_fields$future_scenario_latecentury_year
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = 'late')
 
-			y_type <- 'factor'
-			legend <- 'Period'
-			trans <- NA
+# 			y_type <- 'factor'
+# 			legend <- 'Period'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, time_period = time_period)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, time_period = time_period)
 
-		### future: emission scenario
+# 		### future: emission scenario
 			
-			step <- '5 Prediction/projection'
-			nice <- 'Projection: Future climate scenario'
-			match_on <- 'team'
-			time_period <- 'future'
+# 			step <- '5 Prediction/projection'
+# 			nice <- 'Projection: Future climate scenario'
+# 			match_on <- 'team'
+# 			time_period <- 'future'
 
-			field_names <- c('future_scenario_ensemble', 'future_scenario_ssp126', 'future_scenario_ssp245', 'future_scenario_ssp370', 'future_scenario_ssp585', 'future_scenario_rcp45', 'future_scenario_rcp85')
+# 			field_names <- c('future_scenario_ensemble', 'future_scenario_ssp126', 'future_scenario_ssp245', 'future_scenario_ssp370', 'future_scenario_ssp585', 'future_scenario_rcp45', 'future_scenario_rcp85')
 
-			y <- rast_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- rast_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'future_scenario_ensemble', replacement = 'Ensemble')
-			y <- sub(y, pattern = 'future_scenario_ssp126', replacement = 'SSP 126')
-			y <- sub(y, pattern = 'future_scenario_ssp245', replacement = 'SSP 245')
-			y <- sub(y, pattern = 'future_scenario_ssp370', replacement = 'SSP 370')
-			y <- sub(y, pattern = 'future_scenario_ssp585', replacement = 'SSP 585')
-			y <- sub(y, pattern = 'future_scenario_rcp45', replacement = 'RCP 4.5')
-			y <- sub(y, pattern = 'future_scenario_rcp85', replacement = 'RCP 8.5')
+# 			y <- sub(y, pattern = 'future_scenario_ensemble', replacement = 'Ensemble')
+# 			y <- sub(y, pattern = 'future_scenario_ssp126', replacement = 'SSP 126')
+# 			y <- sub(y, pattern = 'future_scenario_ssp245', replacement = 'SSP 245')
+# 			y <- sub(y, pattern = 'future_scenario_ssp370', replacement = 'SSP 370')
+# 			y <- sub(y, pattern = 'future_scenario_ssp585', replacement = 'SSP 585')
+# 			y <- sub(y, pattern = 'future_scenario_rcp45', replacement = 'RCP 4.5')
+# 			y <- sub(y, pattern = 'future_scenario_rcp85', replacement = 'RCP 8.5')
 
-			y[rast_fields$time_period == 'present'] <- 'Present'
+# 			y[rast_fields$time_period == 'present'] <- 'Present'
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = time_period)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = time_period)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Scenario'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Scenario'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, time_period = time_period)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores, time_period = time_period)
 
-		### extrapolation: individual methods
+# 		### extrapolation: individual methods
 
-			step <- '5 Prediction/projection'
-			nice <- 'Extrapolation: Method of management'
-			match_on <- 'raster'
-			time_period <- 'future'
+# 			step <- '5 Prediction/projection'
+# 			nice <- 'Extrapolation: Method of management'
+# 			match_on <- 'raster'
+# 			time_period <- 'future'
 
-			field_names <- c('extrapolation_clamping_masking_clipping', 'extrapolation_exdet', 'extrapolation_mess', 'extrapolation_shape', 'extrapolation_area_of_applicability', 'extrapolation_response_curve_inspection', 'extrapolation_kissmig', 'extrapolation_no_measures')
+# 			field_names <- c('extrapolation_clamping_masking_clipping', 'extrapolation_exdet', 'extrapolation_mess', 'extrapolation_shape', 'extrapolation_area_of_applicability', 'extrapolation_response_curve_inspection', 'extrapolation_kissmig', 'extrapolation_no_measures')
 
-			y <- rast_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- apply(y, 1, function(row) {
-				cols_with_1 <- field_names[row == 1]
-				if (length(cols_with_1) == 0) return(NA)
-				paste(cols_with_1, collapse = ", ")
-			})
-			y <- replace_y_NAs(y = y, field_names = field_names)
+# 			y <- rast_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- apply(y, 1, function(row) {
+# 				cols_with_1 <- field_names[row == 1]
+# 				if (length(cols_with_1) == 0) return(NA)
+# 				paste(cols_with_1, collapse = ", ")
+# 			})
+# 			y <- replace_y_NAs(y = y, field_names = field_names)
 
-			y <- sub(y, pattern = 'extrapolation_clamping_masking_clipping', replacement = 'Mask/clip')
-			y <- sub(y, pattern = 'extrapolation_exdet', replacement = 'ExDet')
-			y <- sub(y, pattern = 'extrapolation_mess', replacement = 'MESS')
-			y <- sub(y, pattern = 'extrapolation_shape', replacement = 'shape')
-			y <- sub(y, pattern = 'extrapolation_area_of_applicability', replacement = 'AOA')
-			y <- sub(y, pattern = 'extrapolation_response_curve_inspection', replacement = 'Resp. cur.')
-			y <- sub(y, pattern = 'extrapolation_kissmig', replacement = 'KISSMig')
-			y <- sub(y, pattern = 'extrapolation_no_measures', replacement = 'None')
+# 			y <- sub(y, pattern = 'extrapolation_clamping_masking_clipping', replacement = 'Mask/clip')
+# 			y <- sub(y, pattern = 'extrapolation_exdet', replacement = 'ExDet')
+# 			y <- sub(y, pattern = 'extrapolation_mess', replacement = 'MESS')
+# 			y <- sub(y, pattern = 'extrapolation_shape', replacement = 'shape')
+# 			y <- sub(y, pattern = 'extrapolation_area_of_applicability', replacement = 'AOA')
+# 			y <- sub(y, pattern = 'extrapolation_response_curve_inspection', replacement = 'Resp. cur.')
+# 			y <- sub(y, pattern = 'extrapolation_kissmig', replacement = 'KISSMig')
+# 			y <- sub(y, pattern = 'extrapolation_no_measures', replacement = 'None')
 
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = time_period)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = time_period)
 
-			# plot
-			y_type <- 'factor'
-			legend <- 'Method'
-			trans <- NA
+# 			# plot
+# 			y_type <- 'factor'
+# 			legend <- 'Method'
+# 			trans <- NA
 
-			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 			panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-		### extrapolation: any method
+# 		### extrapolation: any method
 
-			step <- '5 Prediction/projection'
-			nice <- 'Extrapolation: Any method'
-			match_on <- 'raster'
+# 			step <- '5 Prediction/projection'
+# 			nice <- 'Extrapolation: Any method'
+# 			match_on <- 'raster'
 
-			field_names <- c('extrapolation_clamping_masking_clipping', 'extrapolation_exdet', 'extrapolation_mess', 'extrapolation_shape', 'extrapolation_area_of_applicability', 'extrapolation_response_curve_inspection', 'extrapolation_kissmig')
+# 			field_names <- c('extrapolation_clamping_masking_clipping', 'extrapolation_exdet', 'extrapolation_mess', 'extrapolation_shape', 'extrapolation_area_of_applicability', 'extrapolation_response_curve_inspection', 'extrapolation_kissmig')
 			
-			y <- rast_fields[ , ..field_names]
-			y <- y[ , lapply(.SD, as.numeric)]
-			y <- rowSums(y)
-			y <- y > 0
-			y[y] <- 'Yes'
-			y[y == 'FALSE'] <- 'No'
+# 			y <- rast_fields[ , ..field_names]
+# 			y <- y[ , lapply(.SD, as.numeric)]
+# 			y <- rowSums(y)
+# 			y <- y > 0
+# 			y[y] <- 'Yes'
+# 			y[y == 'FALSE'] <- 'No'
 		
-			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = time_period)
+# 			results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on, time_period = time_period)
 
-		### taxonomy: accounted for subspecies
+# 		### taxonomy: accounted for subspecies
 			
-			step <- '1 Data'
-			if (species_focal == 'Priona') {
+# 			step <- '1 Data'
+# 			if (species_focal == 'Priona') {
 
-				nice <- 'Modeled only mainland subspecies'
-				match_on <- 'team'
+# 				nice <- 'Modeled only mainland subspecies'
+# 				match_on <- 'team'
 
-				y <- as.numeric(team_fields$taxonomy_mainland_only)
-				y[y == 1] <- 'Yes'
-				y[y == '0'] <- 'No'
+# 				y <- as.numeric(team_fields$taxonomy_mainland_only)
+# 				y[y == 1] <- 'Yes'
+# 				y[y == '0'] <- 'No'
 
-				results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
+# 				results <- contingency_test(step = step, nice = nice, y = y, clusters = clusters, match_on = match_on)
 			
-				# plot
-				y[y == 1] <- 'Mainland'
-				y[y == 0] <- 'Mainland +\ninsular'
-				y_type <- 'factor'
-				legend <- 'Taxonomy'
-				trans <- NA
+# 				# plot
+# 				y[y == 1] <- 'Mainland'
+# 				y[y == 0] <- 'Mainland +\ninsular'
+# 				y_type <- 'factor'
+# 				legend <- 'Taxonomy'
+# 				trans <- NA
 
-				panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
+# 				panels[[length(panels) + 1]] <- add_attribute_to_biplot_with_clusters(biplot = biplot, match_on = match_on, y = y, y_type = y_type, trans = trans, nice = nice, legend = legend, clusters = clusters, scores = scores)
 
-			} # if Priona
+# 			} # if Priona
 
-		panels_page_1 <- plot_grid(plotlist = panels[1:18], nrow = 6, ncol = 3)
-		panels_page_2 <- plot_grid(plotlist = panels[19:length(panels)], nrow = 5, ncol = 3)
-		# panels_page_3 <- plot_grid(plotlist = panels[25:length(panels)], nrow = 4, ncol = 3)
+# 		panels_page_1 <- plot_grid(plotlist = panels[1:18], nrow = 6, ncol = 3)
+# 		panels_page_2 <- plot_grid(plotlist = panels[19:length(panels)], nrow = 5, ncol = 3)
+# 		# panels_page_3 <- plot_grid(plotlist = panels[25:length(panels)], nrow = 4, ncol = 3)
 
-		ggsave(panels_page_1, filename = paste0(out_dir, '/Cluster Analysis of Rasters/Workflow Attributes by Cluster k ', k, ' Page 1 .png'), width = 8.5, height = 11, bg = 'white')
+# 		ggsave(panels_page_1, filename = paste0(out_dir, '/Cluster Analysis of Rasters/Workflow Attributes by Cluster k ', k, ' Page 1 .png'), width = 8.5, height = 11, bg = 'white')
 
-		ggsave(panels_page_2, filename = paste0(out_dir, '/Cluster Analysis of Rasters/Workflow Attributes by Cluster k ', k, ' Page 2.png'), width = 8.5, height = 8, bg = 'white')
+# 		ggsave(panels_page_2, filename = paste0(out_dir, '/Cluster Analysis of Rasters/Workflow Attributes by Cluster k ', k, ' Page 2.png'), width = 8.5, height = 8, bg = 'white')
 		
-		# ggsave(panels_page_3, filename = paste0(out_dir, '/Cluster Analysis of Rasters/Workflow Attributes Page 3 by Cluster k ', k, '.png'), width = 8.5, height = 8, bg = 'white')
+# 		# ggsave(panels_page_3, filename = paste0(out_dir, '/Cluster Analysis of Rasters/Workflow Attributes Page 3 by Cluster k ', k, '.png'), width = 8.5, height = 8, bg = 'white')
 
-	} # next number of clusters
-	fwrite(results, paste0(out_dir, '/Cluster Analysis of Rasters/Associations between Team Clusters and Workflow Attributes.csv'))
+# 	} # next number of clusters
+# 	fwrite(results, paste0(out_dir, '/Cluster Analysis of Rasters/Associations between Team Clusters and Workflow Attributes.csv'))
 
-say('############################################################################################')
-say('### reshape results associating workflow attributes with clusters into table for display ###')
-say('############################################################################################')
+# say('############################################################################################')
+# say('### reshape results associating workflow attributes with clusters into table for display ###')
+# say('############################################################################################')
 
-	# Reformat output of cluster-workflow attribute analysis so that we can print it neatly. Left few columns have information on decisions, right side has one column per number of clusters (k = 2, 3, 4, ...), with cell values indicating significance.
+# 	# Reformat output of cluster-workflow attribute analysis so that we can print it neatly. Left few columns have information on decisions, right side has one column per number of clusters (k = 2, 3, 4, ...), with cell values indicating significance.
 
-	results <- fread(paste0(out_dir, '/Cluster Analysis of Rasters/Associations between Team Clusters and Workflow Attributes.csv'))
-	results <- results[order(step, nice)]
+# 	results <- fread(paste0(out_dir, '/Cluster Analysis of Rasters/Associations between Team Clusters and Workflow Attributes.csv'))
+# 	results <- results[order(step, nice)]
 
-	ks <- get_ks()
-	if (exists('full_reshape')) rm(full_reshape)
-	for (this_k in ks) {
+# 	ks <- get_ks()
+# 	if (exists('full_reshape')) rm(full_reshape)
+# 	for (this_k in ks) {
 		
-		this_reshape <- results[results$k == this_k]
-		this_reshape[ , c('k', 'n_na', 'time_period', 'kw_chi_sq', 'p_value', 'categories') := NULL]
-		this_reshape[ , DUMMY := significant]
-		this_reshape[ , significant := NULL]
-		names(this_reshape)[ncol(this_reshape)] <- paste0('k = ', this_k)
-		if (exists('full_reshape')) this_reshape[ , c('species', 'step', 'nice', 'test') := NULL]
+# 		this_reshape <- results[results$k == this_k]
+# 		this_reshape[ , c('k', 'n_na', 'time_period', 'kw_chi_sq', 'p_value', 'categories') := NULL]
+# 		this_reshape[ , DUMMY := significant]
+# 		this_reshape[ , significant := NULL]
+# 		names(this_reshape)[ncol(this_reshape)] <- paste0('k = ', this_k)
+# 		if (exists('full_reshape')) this_reshape[ , c('species', 'step', 'nice', 'test') := NULL]
 
-		if (exists('full_reshape')) {
-			full_reshape <- cbind(full_reshape, this_reshape)
-		} else {
-			full_reshape <- this_reshape
-		}
+# 		if (exists('full_reshape')) {
+# 			full_reshape <- cbind(full_reshape, this_reshape)
+# 		} else {
+# 			full_reshape <- this_reshape
+# 		}
 
-	}
+# 	}
 
-	fwrite(full_reshape, paste0(out_dir, '/Cluster Analysis of Rasters/Associations between Team Clusters and Workflow Attributes Reshaped.csv'))
+# 	fwrite(full_reshape, paste0(out_dir, '/Cluster Analysis of Rasters/Associations between Team Clusters and Workflow Attributes Reshaped.csv'))
 
 say('###############################################################################################################################')
 say('### univariate Mantel and PERMANOVA tests between distances between rasters in PCA space and individual workflow attributes ###')
@@ -1282,7 +1287,7 @@ say('###########################################################################
 	team_fields <- load_team_fields(species_focal = species_focal)
 
 	### cluster
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 	preds_trans <- t(preds)
 
 	pca <- prcomp(preds_trans)
@@ -1677,8 +1682,13 @@ say('###########################################################################
 			y <- rast_fields$team_code
 			y[rast_fields$raster_name == 'M1'] <- 'Mc'
 			y[rast_fields$raster_name == 'M2'] <- 'Mt'
-			y[rast_fields$raster_name == 'N'] <- 'Nc'
-			y[rast_fields$raster_name %in% c('N3', 'N4', 'N3a', 'N4a', 'N3b', 'N4b')] <- 'Nt'
+			if (species_focal == 'Priona') {
+				y[rast_fields$raster_name %in% c('N1', 'N2')] <- 'Nc'
+				y[rast_fields$raster_name %in% c('N3', 'N4', 'N3a', 'N4a', 'N3b', 'N4b')] <- 'Nt'
+			} else if (species_focal == 'Zamia') {
+				y[rast_fields$raster_name %in% c('N1', 'N2', 'N3', 'N1a', 'N2a', 'N3a', 'N1b', 'N2b', 'N3b')] <- 'Nc'
+				y[rast_fields$raster_name %in% c('N4', 'N5', 'N6', 'N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b')] <- 'Nt'
+			}
 
 			results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, nperm = nperm, results = results, step = step, nice = nice, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title)
 
@@ -2377,7 +2387,7 @@ say('###########################################################################
 # 	team_fields <- load_team_fields(species_focal = species_focal)
 
 # 	### PCA
-# 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 # 	preds_trans <- t(preds)
 
 # 	pca <- prcomp(preds_trans)

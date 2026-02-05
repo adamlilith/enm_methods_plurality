@@ -479,7 +479,7 @@ print(NON)
 # # # say('##########################################################################')
 
 # # # 	n_sites_for_clustering <- 100000
-# # # 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# # # 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 
 # # # 	preds <- preds[ , !grepl('N4|N5|N6', names(preds)), with = FALSE]
 
@@ -496,7 +496,7 @@ print(NON)
 # # # 	library(fpc)
 # # # 	library(dbscan)
 
-# # # 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# # # 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 # # # preds <- preds[1:n_sites_for_clustering] # for development
 # # # 	preds <- t(preds)
 
@@ -519,7 +519,7 @@ print(NON)
 # # # 	library(clValid)
 
 
-# # # 	preds <- load_predictions(period = 'present', scale = TRUE, subset_teams = TRUE)
+# # # 	preds <- load_predictions(species_focal = species_focal, period = 'present', scale = TRUE, subset_teams = TRUE)
 # # # preds <- preds[1:20000] # for development
 # # # 	preds <- t(preds)
 
@@ -559,7 +559,7 @@ say('##############################################################')
 
 	### construct PCA on all time periods' and teams' scaled predictions
 
-		wides <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+		wides <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 		wides <- wides[1:n_sites_for_clustering]
 
 		# # remove thresholded mid-century and late century rasters from team N which tend to overly skew the clusters
@@ -609,7 +609,7 @@ say('##############################################################')
 			'C) Late 20th century'
 		}
 
-		wide <- load_predictions(period = period, scale = TRUE)
+		wide <- load_predictions(species_focal = species_focal, period = period, scale = TRUE)
 		# wide <- wide[ , !grepl(removes, names(wide)), with = FALSE]
 		teams_period <- names(wide)
 		scores <- pca$x[rownames(pca$x) %in% teams_period, ]
@@ -946,7 +946,7 @@ say('####################################################')
 	heats <- list()
 	for (period in periods) {
 		
-		wide <- load_predictions(period = period, scaled = FALSE, subset_teams = TRUE)
+		wide <- load_predictions(species_focal = species_focal, period = period, scaled = FALSE, subset_teams = TRUE)
 
 		if (period == 'present') {
 			title <- 'A) Present'

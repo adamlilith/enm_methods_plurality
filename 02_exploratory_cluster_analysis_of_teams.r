@@ -32,7 +32,7 @@ say('###################################################################')
 		# n_sites_for_clustering <- 20000
 
 		### PCA on predictions	
-		preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+		preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 		# preds <- preds[1:n_sites_for_clustering] # for development
 		trans <- t(preds)
 

@@ -26,7 +26,7 @@ say('###################################')
 say('### dendrogram and PCA of teams ###')
 say('###################################')
 
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 	preds <- t(preds)
 
 	pca <- prcomp(preds)
@@ -76,11 +76,16 @@ say('###################################')
 			axis.ticks = element_blank(),
 			panel.grid.major = element_blank(),
 			panel.grid.minor = element_blank(),
-			legend.position = c(0.095, 0.9),
 			legend.justification = c(0.1, 0.9),
 			legend.title = element_text(size = 12),
 			legend.text = element_text(size = 11)
 		)
+
+	if (species_focal == 'Priona') {
+		dendro <- dendro + theme(legend.position = c(0.095, 0.9))
+	} else if (species_focal == 'Zamia') {
+		dendro <- dendro + theme(legend.position = c(0.8, 0.95))
+	}
 
 	### PCA biplot
 	##############
@@ -199,7 +204,7 @@ say('###################################')
 
 # # # 	# Make a PCA plot of teams and connect rasters from the same team.
 
-# # # 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# # # 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 # # # 	preds <- t(preds)
 
 # # # 	pca <- prcomp(preds)
@@ -429,7 +434,7 @@ say('###################################')
 # # # 	### make base biplot
 # # # 	####################
 
-# # # 		preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# # # 		preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 # # # 		preds <- t(preds)
 
 # # # 		pca <- prcomp(preds)
@@ -532,7 +537,7 @@ say('###################################')
 # # # ### not used but may be useful ###
 # # # ##################################
 
-# # # 	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+# # # 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 # # # 	preds <- t(preds)
 
 # # # 	pca <- prcomp(preds)

@@ -10,7 +10,6 @@
 ### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/07_multivariate_workflow_attributes_vs_raster_dissimilarity.r')
 ###
 ### CONTENTS
-### setup ###
 ### multiple regression on distance matrices ###
 ###
 #############
@@ -86,6 +85,7 @@
 			} else {
 				stop('Bad `match_on` argument.')
 			}
+			if (is.character(y)) y[y == 'NA'] <- NA_character_
 			y <- as.numeric(y)
 			y_match <- match_single_y(match_on = match_on, y = y, attributes = attributes)
 
@@ -141,7 +141,7 @@ say('################################################')
 	### distances between rasters in PCA space
 	##########################################
 
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 	preds_trans <- t(preds)
 
 	pca <- prcomp(preds_trans)
@@ -176,8 +176,13 @@ say('################################################')
 		y <- rast_fields$team_code
 		y[rast_fields$raster_name == 'M1'] <- 'Mc'
 		y[rast_fields$raster_name == 'M2'] <- 'Mt'
-		y[rast_fields$raster_name == 'N'] <- 'Nc'
-		y[rast_fields$raster_name %in% c('N3', 'N4', 'N3a', 'N4a', 'N3b', 'N4b')] <- 'Nt'
+		if (species_focal == 'Priona') {
+			y[rast_fields$raster_name %in% c('N1', 'N2')] <- 'Nc'
+			y[rast_fields$raster_name %in% c('N3', 'N4', 'N3a', 'N4a', 'N3b', 'N4b')] <- 'Nt'
+		} else if (species_focal == 'Zamia') {
+			y[rast_fields$raster_name %in% c('N1', 'N2', 'N3', 'N1a', 'N2a', 'N3a', 'N1b', 'N2b', 'N3b')] <- 'Nc'
+			y[rast_fields$raster_name %in% c('N4', 'N5', 'N6', 'N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b')] <- 'Nt'
+		}
 		
 		y_match <- match_single_y(match_on, y, attributes)
 		attributes[ , (y_name) := y_match]
@@ -627,14 +632,30 @@ say('################################################')
 		
 		}
 
-		# remove highly correlated distance matrices
+		# remove matrices with zero variance (all values equal) highly correlated distance matrices
 		if (length(dist_matrices) > 1) {
-		
-			# cor_threshold <- 0.95
+
+			### remove distance matrices with zero variance
+			zero_var_vars <- c()
+			for (x_name in names(dist_matrices)) {
+				var_val <- var(as.vector(dist_matrices[[x_name]]), na.rm = TRUE)
+				if (is.na(var_val) || var_val == 0) {
+					zero_var_vars <- c(zero_var_vars, x_name)
+				}
+			}
+			
+			if (length(zero_var_vars) > 0) {
+				
+				say('Removing ', length(zero_var_vars), ' distance matrix(ices) with zero variance: ', paste(zero_var_vars, collapse = ', '))
+				dist_matrices <- dist_matrices[!names(dist_matrices) %in% zero_var_vars]
+
+			}
+
+			### combine highly correlated matrices
 			cor_threshold <- 0.7
 			dist_mat_matrix <- sapply(dist_matrices, as.vector)
 			cor_mat <- cor(dist_mat_matrix, method = 'spearman', use = 'pairwise.complete.obs')
-			
+
 			# find redundant variables and combine names
 			name_mapping <- names(dist_matrices)
 			names(name_mapping) <- names(dist_matrices)
@@ -643,7 +664,7 @@ say('################################################')
 			for (i in 1:(ncol(cor_mat) - 1)) {
 				for (j in (i + 1):ncol(cor_mat)) {
 					if (!is.na(cor_mat[i, j]) && abs(cor_mat[i, j]) > cor_threshold) {
-						# combine the names: kept variable (i) gets the removed variable's (j) name appended
+						# append name of removed matrix (j) to kept matrix (i)
 						retained_name <- names(dist_matrices)[i]
 						removed_name <- names(dist_matrices)[j]
 						name_mapping[retained_name] <- paste(name_mapping[retained_name], removed_name, sep = '_')
@@ -667,6 +688,7 @@ say('################################################')
 				dist_matrices <- dist_matrices[-to_remove]
 				say('Removed ', length(to_remove), ' highly correlated distance matrix(ices): ', paste(removed_names, collapse = ', '))
 			}
+
 		}
 
 		# assign distance matrices to environment
@@ -680,11 +702,15 @@ say('################################################')
 
 		say('backwards model selection', level = 2)
 
-			# build formula with remaining distance matrices
+			# build formula with remaining distance matrices 36, 59
+			if (species_focal == 'Zamia') { # These two distance matrices cause problems
+				dist_matrices$`2_collinearity_other_method_3_modeling_software_enmtools` <- NULL
+				dist_matrices$`2_collinearity_other_method` <- NULL
+			}
 			form <- 'rast_dists ~ '
 			for (x_name in names(dist_matrices)) {
-				assign(paste0('att_dist_', x_name), dist_matrices[[x_name]])
-				form <- paste0(form, ' + att_dist_', x_name)
+					assign(paste0('att_dist_', x_name), dist_matrices[[x_name]])
+					form <- paste0(form, ' + att_dist_', x_name)
 			}
 			form <- as.formula(form)
 

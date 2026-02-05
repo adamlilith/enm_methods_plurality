@@ -24,7 +24,7 @@ say('### distributions of predictions by team ###')
 say('############################################')
 
 	### cluster
-	preds <- load_predictions(period = 'all', scale = TRUE, subset_teams = TRUE)
+	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 	preds_trans <- t(preds)
 
 	pca <- prcomp(preds_trans)
