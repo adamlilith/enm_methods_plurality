@@ -54,8 +54,8 @@
 ### analysis-wide settings ###
 ##############################
 
-	# species_focal <- 'Priona'
-	species_focal <- 'Zamia'
+	species_focal <- 'Priona'
+	# species_focal <- 'Zamia'
 
 	# spreadsheet that scores attributes for each workflow
 	fields_file_name <- './Data/Model_choices_2026_01_25.xlsx'
