@@ -23,90 +23,90 @@
 	this_out_dir <- paste0(out_dir, '/Spatial Consensus')
 	dirCreate(this_out_dir)
 
-say('##################################')
-say('### consensus in ranking sites ###')
-say('##################################')
+# say('##################################')
+# say('### consensus in ranking sites ###')
+# say('##################################')
 
-	# Make a plot with mean prediction across rasters at random sites along the x axis and each team's ranked predictions along the y. If all teams agree exactly in rank prediction, we should have a straight line with an upward slope that intersects the axis at y = rank = 1 at the lowest value of the mean prediction across sites and at y = rank = maximum(rank) at the highest value of the mean prediction across sites.
+# 	# Make a plot with mean prediction across rasters at random sites along the x axis and each team's ranked predictions along the y. If all teams agree exactly in rank prediction, we should have a straight line with an upward slope that intersects the axis at y = rank = 1 at the lowest value of the mean prediction across sites and at y = rank = maximum(rank) at the highest value of the mean prediction across sites.
 
-	# predictions
-	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
+# 	# predictions
+# 	preds <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = TRUE)
 
-	preds_rank <- apply(preds, 2, rank)
-	preds_rank <- as.data.table(preds_rank)
-	preds_rank[ , pred_mean := rowMeans(preds)]
+# 	preds_rank <- apply(preds, 2, rank)
+# 	preds_rank <- as.data.table(preds_rank)
+# 	preds_rank[ , pred_mean := rowMeans(preds)]
 
-	preds_rank_long <- melt(preds_rank, measure.vars = names(preds), variable.name = 'team', value.name = 'rank', id.vars = c('pred_mean'))
-	preds_rank_long <- as.data.table(preds_rank_long)
+# 	preds_rank_long <- melt(preds_rank, measure.vars = names(preds), variable.name = 'team', value.name = 'rank', id.vars = c('pred_mean'))
+# 	preds_rank_long <- as.data.table(preds_rank_long)
 
-	# remove rasters N3 and N4 for Prionailurus bengalensis futures bc these are all zeros
-	bads <- if (species_focal == 'Priona') {
-		paste0(c('N3a', 'N4a', 'N3b', 'N4b'), '_mid')
-	} else if (species_focal == 'Zamia') {
-		paste0(c('N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b'), '_mid')
-	}
-	removes <- preds_rank_long$team %in% bads
-	preds_rank_long <- preds_rank_long[!removes]
+# 	# remove rasters N3 and N4 for Prionailurus bengalensis futures bc these are all zeros
+# 	bads <- if (species_focal == 'Priona') {
+# 		paste0(c('N3a', 'N4a', 'N3b', 'N4b'), '_mid')
+# 	} else if (species_focal == 'Zamia') {
+# 		paste0(c('N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b'), '_mid')
+# 	}
+# 	removes <- preds_rank_long$team %in% bads
+# 	preds_rank_long <- preds_rank_long[!removes]
 
-	bads <- if (species_focal == 'Priona') {
-		paste0(c('N3a', 'N4a', 'N3b', 'N4b'), '_late')
-	} else if (species_focal == 'Zamia') {
-		paste0(c('N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b'), '_late')
-	}
-	removes <- preds_rank_long$team %in% bads
-	preds_rank_long <- preds_rank_long[!removes]
+# 	bads <- if (species_focal == 'Priona') {
+# 		paste0(c('N3a', 'N4a', 'N3b', 'N4b'), '_late')
+# 	} else if (species_focal == 'Zamia') {
+# 		paste0(c('N4a', 'N5a', 'N6a', 'N4b', 'N5b', 'N6b'), '_late')
+# 	}
+# 	removes <- preds_rank_long$team %in% bads
+# 	preds_rank_long <- preds_rank_long[!removes]
 
-	xlim <- range(preds_rank_long$pred_mean)
-	xlim[1] <- max(0, roundTo(xlim[1], 0.05, floor))
-	xlim[2] <- min(1, roundTo(xlim[2], 0.05, ceiling))
+# 	xlim <- range(preds_rank_long$pred_mean)
+# 	xlim[1] <- max(0, roundTo(xlim[1], 0.05, floor))
+# 	xlim[2] <- min(1, roundTo(xlim[2], 0.05, ceiling))
 
-	ylim <- c(1, max(preds_rank_long$rank))
+# 	ylim <- c(1, max(preds_rank_long$rank))
 
-	abline <- data.table(
-		x = range(preds_rank_long$pred_mean),
-		y = c(1, nrow(preds_rank))
-	)
+# 	abline <- data.table(
+# 		x = range(preds_rank_long$pred_mean),
+# 		y = c(1, nrow(preds_rank))
+# 	)
 
-	slope <- (nrow(preds_rank) - 1) / diff(range(preds_rank_long$pred_mean))
+# 	slope <- (nrow(preds_rank) - 1) / diff(range(preds_rank_long$pred_mean))
 
-	plots <- list()
-	for (period in c('present', 'mid', 'late')) {
+# 	plots <- list()
+# 	for (period in c('present', 'mid', 'late')) {
 
-		say(period)
+# 		say(period)
 
-		# subsample to expedite
-		n <- nrow(preds_rank_long)
-		n_sample <- round(0.1 * n)
-		sampled <- preds_rank_long[sample(n, n_sample)]
+# 		# subsample to expedite
+# 		n <- nrow(preds_rank_long)
+# 		n_sample <- round(0.1 * n)
+# 		sampled <- preds_rank_long[sample(n, n_sample)]
 		
-		sampled <- sampled[grepl(sampled$team, pattern = paste0('_', period)), ]
-		sampled[ , team := sub(team, pattern = paste0('_', period), replacement = '')]
+# 		sampled <- sampled[grepl(sampled$team, pattern = paste0('_', period)), ]
+# 		sampled[ , team := sub(team, pattern = paste0('_', period), replacement = '')]
 
-		title <- get_nice_period(period)
+# 		title <- get_nice_period(period)
 
-		plots[[length(plots) + 1]] <- ggplot(sampled, aes(x = pred_mean, y = rank, color = team)) +
-			geom_point(alpha = 0.03, pch = 16) +
-			geom_smooth(method = 'loess', se = FALSE) +
-			geom_smooth(aes(x = pred_mean, y = rank), inherit.aes = FALSE, method = 'loess', se = FALSE, color = 'black', linewidth = 2) +
-			geom_abline(slope = slope, intercept = 0, linetype = 'dashed', color = 'black', linewidth = 1.2) +
-			# coord_cartesian(xlim = xlim, ylim = ylim) +
-			xlim(xlim[1], xlim[2]) + ylim(ylim[1], ylim[2]) +
-			xlab('Mean prediction at site across rasters') + ylab('Rank of prediction at site') +
-			ggtitle(title) +
-			labs(color = 'Raster') +
-			guides(color = guide_legend(ncol = 12)) +
-			theme(
-				legend.position = 'bottom',
-				legend.title = element_text(size = 22),
-				legend.text = element_text(size = 14),
-				plot.title = element_text(size = 30),
-				axis.title = element_text(size = 28),
-				axis.text = element_text(size = 20)
-			)
-	}
+# 		plots[[length(plots) + 1]] <- ggplot(sampled, aes(x = pred_mean, y = rank, color = team)) +
+# 			geom_point(alpha = 0.03, pch = 16) +
+# 			geom_smooth(method = 'loess', se = FALSE) +
+# 			geom_smooth(aes(x = pred_mean, y = rank), inherit.aes = FALSE, method = 'loess', se = FALSE, color = 'black', linewidth = 2) +
+# 			geom_abline(slope = slope, intercept = 0, linetype = 'dashed', color = 'black', linewidth = 1.2) +
+# 			# coord_cartesian(xlim = xlim, ylim = ylim) +
+# 			xlim(xlim[1], xlim[2]) + ylim(ylim[1], ylim[2]) +
+# 			xlab('Mean prediction at site across rasters') + ylab('Rank of prediction at site') +
+# 			ggtitle(title) +
+# 			labs(color = 'Raster') +
+# 			guides(color = guide_legend(ncol = 12)) +
+# 			theme(
+# 				legend.position = 'bottom',
+# 				legend.title = element_text(size = 22),
+# 				legend.text = element_text(size = 14),
+# 				plot.title = element_text(size = 30),
+# 				axis.title = element_text(size = 28),
+# 				axis.text = element_text(size = 20)
+# 			)
+# 	}
 
-	combo <- plot_grid(plotlist = plots, nrow = 1, align = 'hv')
-	ggsave(combo, filename = paste0(this_out_dir, '/Mean Prediction vs Rank of Prediction with Legend.png'), width = 26, height = 10, bg = 'white')
+# 	combo <- plot_grid(plotlist = plots, nrow = 1, align = 'hv')
+# 	ggsave(combo, filename = paste0(this_out_dir, '/Mean Prediction vs Rank of Prediction with Legend.png'), width = 26, height = 10, bg = 'white')
 
 # say('####################################################################')
 # say('### consensus in assigning locations to quartiles of suitability ###')
@@ -628,152 +628,152 @@ say('##################################')
 # 	# hist_grid <- plot_grid(plotlist = hists_proportion_agree, ncol = 5, align = 'vh')
 # 	# ggsave(hist_grid, filename = paste0(this_out_dir, '/Maps of Agreement - Proportion of Rasters in Agreement - Histogram.png'), width = 10.2, height = 7.4, dpi = 600, bg = 'white')
 
-# say('#####################################################################################################')
-# say('### maps illustrating calculation of consensus in assigning locations to quartiles of suitability ###')
-# say('#####################################################################################################')
+say('#####################################################################################################')
+say('### maps illustrating calculation of consensus in assigning locations to quartiles of suitability ###')
+say('#####################################################################################################')
 
-# 	# Make three maps, two showing two teams' rasters divided into quartiles, and a third illustrating positive and negative agreement.
+	# Make three maps, two showing two teams' rasters divided into quartiles, and a third illustrating positive and negative agreement.
 
-# 	# world vector
-# 	world <- rnaturalearth::ne_countries(scale = 'medium', returnclass = 'sv')
-# 	focal <- vect(paste0(out_dir, '/common_study_region.gpkg'))
+	# world vector
+	world <- rnaturalearth::ne_countries(scale = 'medium', returnclass = 'sv')
+	focal <- vect(paste0(out_dir, '/common_study_region.gpkg'))
 
-# 	# plot extent
-# 	extent <- ext(focal)
-# 	extent <- as.polygons(extent, crs = focal)
-# 	extent <- buffer(extent, 20000)
-# 	extent <- ext(extent)
-# 	extent <- as.vector(extent)
+	# plot extent
+	extent <- ext(focal)
+	extent <- as.polygons(extent, crs = focal)
+	extent <- buffer(extent, 20000)
+	extent <- ext(extent)
+	extent <- as.vector(extent)
 
-# 	# predictions
-# 	preds_xy <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = FALSE)
-# 	preds_present <- load_predictions(species_focal = species_focal, period = 'present', scale = TRUE, subset_teams = TRUE)
+	# predictions
+	preds_xy <- load_predictions(species_focal = species_focal, period = 'all', scale = TRUE, subset_teams = FALSE)
+	preds_present <- load_predictions(species_focal = species_focal, period = 'present', scale = TRUE, subset_teams = TRUE)
 
-# 	# classify each raster's predictions into quartiles
-# 	# 1 = not highest, 2 = highest
-# 	single_quartile_fx <- function(x, prob = 0.75) {
+	# classify each raster's predictions into quartiles
+	# 1 = not highest, 2 = highest
+	single_quartile_fx <- function(x, prob = 0.75) {
 	
-# 		out <- rep(NA_integer_, length(x))
+		out <- rep(NA_integer_, length(x))
 
-# 		# is raster binary thresholded? if so, assign all 0s to quartile 1 and all 1s to quartile 4
-# 		if (all(x %in% c(0, 1))) {
-# 			out[x == 0] <- 1
-# 			out[x == 1] <- 2
-# 		} else {
+		# is raster binary thresholded? if so, assign all 0s to quartile 1 and all 1s to quartile 4
+		if (all(x %in% c(0, 1))) {
+			out[x == 0] <- 1
+			out[x == 1] <- 2
+		} else {
 
-# 			quant <- quantile(x, prob)
-# 			out[x <= quant] <- 1
-# 			out[x > quant] <- 2
+			quant <- quantile(x, prob)
+			out[x <= quant] <- 1
+			out[x > quant] <- 2
 
-# 		}
-# 		out
+		}
+		out
 	
-# 	}
+	}
 
-# 	quarts <- apply(preds_present, 2, single_quartile_fx)
-# 	quarts <- as.data.table(quarts)
-# 	quarts[ , D_present := factor(D_present)]
-# 	quarts[ , S_present := factor(S_present)]
-# 	quarts[ , c('longitude', 'latitude') := preds_xy[ , c('longitude', 'latitude')]]
-# 	quarts[ , agree_pos := (D_present == 2 & S_present == 2)]
-# 	quarts[ , agree_neg := (D_present == 1 & S_present == 1)]
-# 	quarts[ , disagree := D_present != S_present]
+	quarts <- apply(preds_present, 2, single_quartile_fx)
+	quarts <- as.data.table(quarts)
+	quarts[ , D_present := factor(D_present)]
+	quarts[ , S_present := factor(S_present)]
+	quarts[ , c('longitude', 'latitude') := preds_xy[ , c('longitude', 'latitude')]]
+	quarts[ , agree_pos := (D_present == 2 & S_present == 2)]
+	quarts[ , agree_neg := (D_present == 1 & S_present == 1)]
+	quarts[ , disagree := D_present != S_present]
 
-# 	quarts[ , agree_pos := factor(agree_pos)]
-# 	quarts[ , agree_neg := factor(agree_neg)]
-# 	quarts[ , disagree := factor(disagree)]
+	quarts[ , agree_pos := factor(agree_pos)]
+	quarts[ , agree_neg := factor(agree_neg)]
+	quarts[ , disagree := factor(disagree)]
 
-# 	quarts <- vect(quarts, geom = c('longitude', 'latitude'), crs = getCRS('WGS84'))
+	quarts <- vect(quarts, geom = c('longitude', 'latitude'), crs = getCRS('WGS84'))
 	
-# 	world_fill <- 'gray90'
-# 	disagree_col <- 'gray60'
+	world_fill <- 'gray90'
+	disagree_col <- 'gray60'
 
-# 	maps <- list()
+	maps <- list()
 
-# 	maps$team_1 <- ggplot() +
-# 		layer_spatial(world, fill = world_fill) +
-# 		layer_spatial(quarts, aes(color = D_present), size = 0.1) +
-# 		scale_color_manual(
-# 			name = NULL,
-# 			values = c('1' = '#182E59', '2' = '#FDE847'),
-# 			labels = c('1' = 'Not highest', '2' = 'Highest')
-# 		) +
-# 		ggtitle('Highest suitability: Team D')
+	maps$team_1 <- ggplot() +
+		layer_spatial(world, fill = world_fill) +
+		layer_spatial(quarts, aes(color = D_present), size = 0.1) +
+		scale_color_manual(
+			name = NULL,
+			values = c('1' = '#182E59', '2' = 'orange'),
+			labels = c('1' = 'Not highest', '2' = 'Highest')
+		) +
+		ggtitle('Highest suitability: Team D')
 
-# 	maps$team_2 <- ggplot() +
-# 		layer_spatial(world, fill = world_fill) +
-# 		layer_spatial(quarts, aes(color = S_present), size = 0.1) +
-# 		scale_color_manual(
-# 			name = NULL,
-# 			values = c('1' = '#182E59', '2' = '#FDE847'),
-# 			labels = c('1' = 'Not highest', '2' = 'Highest')
-# 		) +
-# 		ggtitle('Highest suitability: Team S')
+	maps$team_2 <- ggplot() +
+		layer_spatial(world, fill = world_fill) +
+		layer_spatial(quarts, aes(color = S_present), size = 0.1) +
+		scale_color_manual(
+			name = NULL,
+			values = c('1' = '#182E59', '2' = 'orange'),
+			labels = c('1' = 'Not highest', '2' = 'Highest')
+		) +
+		ggtitle('Highest suitability: Team S')
 
-# 	maps$agree_pos <- ggplot() +
-# 		layer_spatial(world, fill = world_fill) +
-# 		layer_spatial(quarts, aes(color = agree_pos), size = 0.1) +
-# 		scale_color_manual(
-# 			name = NULL,
-# 			values = c('TRUE' = '#008837', 'FALSE' = disagree_col),
-# 			labels = c('TRUE' = 'Positive'),
-# 			breaks = c('TRUE')
-# 		) +
-# 		ggtitle('Positive agreement') 
+	maps$agree_pos <- ggplot() +
+		layer_spatial(world, fill = world_fill) +
+		layer_spatial(quarts, aes(color = agree_pos), size = 0.1) +
+		scale_color_manual(
+			name = NULL,
+			values = c('TRUE' = '#008837', 'FALSE' = disagree_col),
+			labels = c('TRUE' = 'Positive'),
+			breaks = c('TRUE')
+		) +
+		ggtitle('Positive agreement') 
 
-# 	maps$agree_neg <- ggplot() +
-# 		layer_spatial(world, fill = world_fill) +
-# 		layer_spatial(quarts, aes(color = agree_neg), size = 0.1) +
-# 		scale_color_manual(
-# 			name = NULL,
-# 			values = c('TRUE' = '#7b3294', 'FALSE' = disagree_col),
-# 			labels = c('TRUE' = 'Negative'),
-# 			breaks = c('TRUE')
-# 		) +
-# 		ggtitle('Negative agreement')
+	maps$agree_neg <- ggplot() +
+		layer_spatial(world, fill = world_fill) +
+		layer_spatial(quarts, aes(color = agree_neg), size = 0.1) +
+		scale_color_manual(
+			name = NULL,
+			values = c('TRUE' = '#7b3294', 'FALSE' = disagree_col),
+			labels = c('TRUE' = 'Negative'),
+			breaks = c('TRUE')
+		) +
+		ggtitle('Negative agreement')
 
-# 	maps$disagree <- ggplot() +
-# 		layer_spatial(world, fill = world_fill) +
-# 		layer_spatial(quarts, aes(color = disagree), size = 0.1) +
-# 		scale_color_manual(
-# 			name = NULL,
-# 			values = c('TRUE' = 'yellow', 'FALSE' = disagree_col),
-# 			labels = c('TRUE' = 'Random', 'FALSE' = 'Agree')
-# 		) +
-# 		ggtitle('Disagreement')
+	maps$disagree <- ggplot() +
+		layer_spatial(world, fill = world_fill) +
+		layer_spatial(quarts, aes(color = disagree), size = 0.1) +
+		scale_color_manual(
+			name = NULL,
+			values = c('TRUE' = 'yellow', 'FALSE' = disagree_col),
+			labels = c('TRUE' = 'Disagree', 'FALSE' = 'Agree')
+		) +
+		ggtitle('Disagreement')
 
 
-# 	for (i in seq_along(maps)) {
+	for (i in seq_along(maps)) {
 	
-# 		maps[[i]] <- maps[[i]] +
-# 			guides(color = guide_legend(override.aes = list(size = 5, pch = 15), reverse = TRUE)) +
-# 			coord_sf(xlim = extent[1:2], ylim = extent[3:4], expand = FALSE) +
-# 			theme(
-# 				legend.position = 'bottom',
-# 				legend.direction = 'horizontal',
-# 				legend.title.position = 'bottom',
-# 				legend.title = element_text(size = 9),
-# 				legend.text = element_text(size = 8),
-# 				legend.key = element_blank(),
-# 				legend.key.width = unit(0.8, 'cm'),
-# 				legend.key.height = unit(0.2, 'cm'),
-# 				legend.margin = margin(t = -5, r = 0, b = 0, l = 0),
-# 				legend.box.margin = margin(t = -3, r = 0, b = 0, l = 0),
-# 				plot.title = element_text(size = 11),
-# 				plot.subtitle = element_text(size = 10),
-# 				axis.title = element_blank(),
-# 				axis.text = element_blank(),
-# 				axis.ticks = element_blank(),
-# 				panel.background = element_blank(),
-# 				panel.border = element_rect(color = 'black', fill = NA, linewidth = 0.4),
-# 				plot.margin = unit(c(0, 0.1, 0, 0.1), 'cm')
-# 			)
+		maps[[i]] <- maps[[i]] +
+			guides(color = guide_legend(override.aes = list(size = 5, pch = 15), reverse = TRUE)) +
+			coord_sf(xlim = extent[1:2], ylim = extent[3:4], expand = FALSE) +
+			theme(
+				legend.position = 'bottom',
+				legend.direction = 'horizontal',
+				legend.title.position = 'bottom',
+				legend.title = element_text(size = 9),
+				legend.text = element_text(size = 8),
+				legend.key = element_blank(),
+				legend.key.width = unit(0.8, 'cm'),
+				legend.key.height = unit(0.2, 'cm'),
+				legend.margin = margin(t = -5, r = 0, b = 0, l = 0),
+				legend.box.margin = margin(t = -3, r = 0, b = 0, l = 0),
+				plot.title = element_text(size = 11),
+				plot.subtitle = element_text(size = 10),
+				axis.title = element_blank(),
+				axis.text = element_blank(),
+				axis.ticks = element_blank(),
+				panel.background = element_blank(),
+				panel.border = element_rect(color = 'black', fill = NA, linewidth = 0.4),
+				plot.margin = unit(c(0, 0.1, 0, 0.1), 'cm')
+			)
 	
-# 	}
+	}
 
-# 	map_grid <- plot_grid(plotlist = maps, nrow = 1, align = 'vh')
+	map_grid <- plot_grid(plotlist = maps, nrow = 1, align = 'vh')
 
-# 	ggsave(map_grid, filename = paste0(this_out_dir, '/Maps of Agreement - Examples.png'), width = 10.2, height = 7.6 / 3, dpi = 600, bg = 'white')
+	ggsave(map_grid, filename = paste0(this_out_dir, '/Maps of Agreement - Examples.png'), width = 10.2, height = 7.6 / 3, dpi = 600, bg = 'white')
 
 # say('#######################################################')
 # say('### consensus in identifying climate change refugia ###')
