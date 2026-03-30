@@ -582,7 +582,8 @@ say('###########################################################################
 				p <- bquote(italic('P')[PERM] * ' = ' * .(p))
 				disp_p <- sprintf('%.2f', round(disp_p, 2))
 				dispersion_p <- bquote(italic('P')[disp] * ' = ' * .(disp_p))
-				stats_color <- if (perm_p <= 0.05 & disp_p > 0.05) { 'red' } else { 'black' }
+				# stats_color <- if (perm_p <= 0.05 & disp_p > 0.05) { 'red' } else { 'black' }
+				stats_color <- if (perm_p <= 0.05 & disp_p > 0.05) { 'black' } else { 'black' }
 			# } else { # PERMANOVA invalid: use Mantel
 				# r_r2 <- sprintf('%.2f', round(mantel_r, 2))
 				# p <- sprintf('%.2f', round(mantel_p, 2))
@@ -887,19 +888,52 @@ say('###########################################################################
 
 				results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
 
-			### source of climate predictors
+			# ### source of climate predictors
 
-				nice <- 'Predictors: Climate data source'
-				title <- 'Climate data source'
+				# nice <- 'Predictors: Climate data source'
+				# title <- 'Climate data source'
+				# letter_n <- letter_n + 1
+				# letter <- letters[letter_n]
+				# match_on <- 'team'
+				# trans <- NA
+				# plot_type <- 'categorical'
+				# display_legend <- FALSE
+				# legend_title <- 'Source'
+
+				# y <- team_fields$predictors_climate_source
+
+				# results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
+
+			### SDM algorithm
+
+				nice <- 'Algorithm'
+				title <- 'SDM algorithm'
 				letter_n <- letter_n + 1
 				letter <- letters[letter_n]
-				match_on <- 'team'
+				match_on <- 'raster'
 				trans <- NA
 				plot_type <- 'categorical'
 				display_legend <- FALSE
-				legend_title <- 'Source'
+				legend_title <- 'Algorithm'
 
-				y <- team_fields$predictors_climate_source
+				field_names <- c('algo_ensemble', 'algo_maxent', 'algo_maxnet', 'algo_glm', 'algo_gam', 'algo_rf', 'algo_sre')
+
+				y <- rast_fields[ , ..field_names]
+				y <- y[ , lapply(.SD, as.numeric)]
+				y <- apply(y, 1, function(row) {
+					cols_with_1 <- field_names[row == 1]
+					if (length(cols_with_1) == 0) return(NA)
+					paste(cols_with_1, collapse = ", ")
+				})
+				y <- replace_y_NAs(y = y, field_names = field_names)
+
+				y[y == 'algo_ensemble'] <- 'Ensemble'
+				y[y == 'algo_maxent'] <- 'MaxEnt'
+				y[y == 'algo_maxnet'] <- 'MaxNet'
+				y[y == 'algo_glm'] <- 'GLM'
+				y[y == 'algo_gam'] <- 'GAM'
+				y[y == 'algo_rf'] <- 'RF'
+				y[y == 'algo_sre'] <- 'SRE'
 
 				results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
 
