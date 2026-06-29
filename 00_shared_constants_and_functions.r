@@ -18,7 +18,7 @@
 	library(cluster) # clustering
 	library(cowplot) # combining ggplots
 	library(data.table) # fast data frames
-	# library(ecodist) # multiple regression on distance matrices
+	library(ecodist) # multiple regression on distance matrices
 	library(enmSdmX) # SDMing and GIS
 	library(ggplot2) # graphics
 	library(ggspatial) # spatial graphics

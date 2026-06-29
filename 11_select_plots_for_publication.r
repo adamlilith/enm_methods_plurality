@@ -888,21 +888,21 @@ say('###########################################################################
 
 				results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
 
-			# ### source of climate predictors
+			### source of climate predictors
 
-				# nice <- 'Predictors: Climate data source'
-				# title <- 'Climate data source'
-				# letter_n <- letter_n + 1
-				# letter <- letters[letter_n]
-				# match_on <- 'team'
-				# trans <- NA
-				# plot_type <- 'categorical'
-				# display_legend <- FALSE
-				# legend_title <- 'Source'
+				nice <- 'Predictors: Climate data source'
+				title <- 'Climate data source'
+				letter_n <- letter_n + 1
+				letter <- letters[letter_n]
+				match_on <- 'team'
+				trans <- NA
+				plot_type <- 'categorical'
+				display_legend <- FALSE
+				legend_title <- 'Source'
 
-				# y <- team_fields$predictors_climate_source
+				y <- team_fields$predictors_climate_source
 
-				# results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
+				results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
 
 			### SDM algorithm
 
@@ -1055,7 +1055,6 @@ say('###########################################################################
 				y <- rast_fields$time_period
 
 				results <- do_analysis(y = y, match_on = match_on, rast_dists = rast_dists, results = results, step = step, nice = nice, title = title, trans = trans, plot_type = plot_type, display_legend = display_legend, legend_title = legend_title, letter = letter)
-
 
 	} # next species
 
