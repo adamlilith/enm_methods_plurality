@@ -1,8 +1,8 @@
 ### SDM METHODOLOGICAL PLURALITY
-### Anna Thonis, Nikki Calavari, Uzma Ashraf, Toni Lyn Morelli, and Adam B. Smith*
-### * adam.smith@mobot.org | Missouri Botanical Garden | 2025-10
+### <author names redacted for review>
+### <author contact information redacted for review> | 2025-10
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/00_shared_constants_and_functions.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows/enm_methods_plurality/00_shared_constants_and_functions.r')
 ###
 ### CONTENTS ###
 ### setup ###
@@ -13,7 +13,7 @@
 ### setup ###
 #############
 
-	setwd('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)')
+	setwd('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows')
 
 	library(cluster) # clustering
 	library(cowplot) # combining ggplots
@@ -44,7 +44,7 @@
 
 	drive <- 'C:/Kaji/'
 
-	setwd(paste0(drive, '/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)'))
+	setwd(paste0(drive, '/Research Group/ENMs - Plurality of Modeling Workflows'))
 
 ##############################
 ### analysis-wide settings ###

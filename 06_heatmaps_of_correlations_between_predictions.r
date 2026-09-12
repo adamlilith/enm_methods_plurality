@@ -4,7 +4,7 @@
 ###
 ### Make heatmaps of correlations between predictions by each team.
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/04_heatmaps_of_correlations_between_predictions.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/06_heatmaps_of_correlations_between_predictions.r')
 ###
 ### CONTENTS ###
 ### setup ###

@@ -4,7 +4,7 @@
 ###
 ### Extract predictions from rasters to random points.
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/01_extract_predictions_to_random_points.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/02_extract_predictions_to_random_points.r')
 ###
 ### CONTENTS ###
 ### setup ###

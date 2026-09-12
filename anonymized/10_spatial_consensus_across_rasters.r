@@ -1,10 +1,10 @@
 ### SDM METHODOLOGICAL PLURALITY
-### Anna Thonis, Nikki Calavari, Uzma Ashraf, Toni Lyn Morelli, and Adam B. Smith*
-### * adam.smith@mobot.org | Missouri Botanical Garden | 2025-10
+### <author names redacted for review>
+### <author contact information redacted for review> | 2025-10
 ###
 ### Analysis of spatial consensus across rasters.
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/10_spatial_consensus_across_rasters.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows/enm_methods_plurality/10_spatial_consensus_across_rasters.r')
 ###
 ### CONTENTS
 ### setup ###
@@ -18,7 +18,7 @@
 #############
 
 	rm(list = ls())
-	source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/00_shared_constants_and_functions.r')
+	source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows/enm_methods_plurality/00_shared_constants_and_functions.r')
 
 	this_out_dir <- paste0(out_dir, '/Spatial Consensus')
 	dirCreate(this_out_dir)

@@ -1,10 +1,10 @@
 ### SDM METHODOLOGICAL PLURALITY
-### Anna Thonis, Nikki Calavari, Uzma Ashraf, Toni Lyn Morelli, and Adam B. Smith*
-### * adam.smith@mobot.org | Missouri Botanical Garden | 2025-10
+### <author names redacted for review>
+### <author contact information redacted for review> | 2025-10
 ###
 ### Calculate statistics for testing if there is clustering of predictions between teams and how many clusters there should be. 
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/02_exploratory_cluster_analysis_of_teams.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows/enm_methods_plurality/04_exploratory_cluster_analysis_of_teams.r')
 ###
 ### CONTENTS ###
 ### setup ###
@@ -15,7 +15,7 @@
 #############
 
 	rm(list = ls())
-	source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/00_shared_constants_and_functions.r')
+	source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows/enm_methods_plurality/00_shared_constants_and_functions.r')
 
 	dirCreate(paste0('./Outputs ', species_full, '/Cluster Analysis of Rasters'))
 

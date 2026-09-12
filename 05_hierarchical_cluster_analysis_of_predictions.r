@@ -4,7 +4,7 @@
 ###
 ### Make figures of dendrogram and PCA clustering of rasters using hierarchical clustering.
 ###
-### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/03_cluster_analysis_of_teams_hierarchical.r')
+### source('C:/Kaji/Research Group/ENMs - Plurality of Modeling Workflows (Anna Thonis)/enm_methods_plurality/05_hierarchical_cluster_analysis_of_predictions.r')
 ###
 ### CONTENTS ###
 ### setup ###

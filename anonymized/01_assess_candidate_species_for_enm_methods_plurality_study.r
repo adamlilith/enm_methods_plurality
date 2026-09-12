@@ -1,8 +1,8 @@
 ### ASSESSING CANDIDATE SPECIES FOR PLURALITY OF SDM WORKFLOWS PROJECT
 ### Adam B. Smith | Missouri Botanical Garden | adam.smith@mobot.org | 2023-10
 ###
-### source('C:/Ecology/Drive/Research/ENMs - Plurality of Modeling Workflows (Anna Thonis)/Code/Assess Candidate Species for Plurality of SDM Workflows.r')
-### source('E:/Adam/Research/ENMs - Plurality of Modeling Workflows (Anna Thonis)/Code/Assess Candidate Species for Plurality of SDM Workflows.r')
+### source('C:/Ecology/Drive/Research/ENMs - Plurality of Modeling Workflows/Code/Assess Candidate Species for Plurality of SDM Workflows.r')
+### source('E:/Adam/Research/ENMs - Plurality of Modeling Workflows/Code/Assess Candidate Species for Plurality of SDM Workflows.r')
 ###
 ### CONTENTS ###
 ### setup ###
@@ -28,7 +28,7 @@ library(terra)
 # drive <- 'C:/Ecology/Drive/'
 drive <- 'E:/Adam/'
 
-setwd(paste0(drive, '/Research/ENMs - Plurality of Modeling Workflows (Anna Thonis)'))
+setwd(paste0(drive, '/Research/ENMs - Plurality of Modeling Workflows'))
 
 ################################################################################
 ### make maps and tally occurrences of selected species: cycads of the world ###

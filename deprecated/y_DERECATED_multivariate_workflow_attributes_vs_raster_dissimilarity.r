@@ -364,7 +364,7 @@ say('################################################')
 		y_name <- '2_non_presence_type'
 		match_on <- 'team'
 
-		field_names <- c('nonpres_type_background', 'nonpres_type_pseudoabsence', 'nonpres_type_target_background')
+		field_names <- c('nonpres_type_background', 'nonpres_type_pseudoabsence')
 
 		y <- team_fields[ , ..field_names]
 		y <- y[ , lapply(.SD, as.numeric)]
